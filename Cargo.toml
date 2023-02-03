@@ -1,0 +1,18 @@
+[package]
+name = "rbot"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+# [dependencies]
+# detour = { git = "https://github.com/Hpmason/detour-rs", branch = "fix-nightly1.67.0-changes" }
+
+[dependencies.windows]
+version = "0.44.0"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_System_SystemServices",
+]
