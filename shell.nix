@@ -1,8 +1,9 @@
 with (import <nixpkgs> { });
 mkShell {
   buildInputs = [
-    cargo
+    rustup
   ];
   shellHook = ''
+    rustup target add i686-pc-windows-gnu
   '';
 }
