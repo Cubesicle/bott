@@ -2,7 +2,7 @@
 A Geometry Dash replay bot written in Rust.
 
 ## Building
-* To build this project, you will need to install [Nix](https://nixos.org/download.html).
+* To build this project, you will need to install GNU Make and [Nix](https://nixos.org/download.html).
 * Next, simply run `make` to build the project.
 * You can also run `make release` to build an optimized version of the dll.
 * The compiled dll will be found in `target/i686-pc-windows-gnu`.
