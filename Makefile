@@ -1,4 +1,4 @@
-run = nix-shell --pure --run
+run = nix-shell --run
 
 all: build
 
