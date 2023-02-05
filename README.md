@@ -13,7 +13,7 @@ This project uses podman for cross compilation for Windows via Linux. If your bu
 [storage]
   driver = "overlay"
 ```
-After that, start up the nix shell by running `nix-shell`, then run `podman system reset`, and delete the libpod db by running `rm ~/.local/share/containers/storage/libpod/bolt_state.db`.
+After that, delete the libpod db by running `rm ~/.local/share/containers/storage/libpod/bolt_state.db`. Then, start up the nix shell by running `nix-shell` and run `podman system reset`.
 
 ## Running the bot
 Find a dll injector online and inject the dll into Geometry dash.
