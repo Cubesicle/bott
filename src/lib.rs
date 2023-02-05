@@ -1,12 +1,32 @@
 use std::ffi::c_void;
+use windows::w;
+use windows::core::PCWSTR;
 use windows::Win32::{ 
     Foundation::HINSTANCE,
+    Foundation::MAX_PATH,
     System::LibraryLoader::FreeLibraryAndExitThread,
+    System::LibraryLoader::GetModuleFileNameW,
     System::SystemServices::*,
+    UI::Shell::PathFindFileNameW,
+    UI::Shell::StrCmpW,
+    UI::WindowsAndMessaging::MB_ICONERROR,
+    UI::WindowsAndMessaging::MessageBoxW,
 };
 
 fn main_thread(hinst_dll: HINSTANCE) {
-    println!("yippee!!");
+    let mut file_path_utf16 = [0; MAX_PATH as usize];
+    unsafe { GetModuleFileNameW(None, &mut file_path_utf16); }
+
+    let file_path = PCWSTR::from_raw(file_path_utf16.as_ptr());
+    let file_name = unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
+
+    let is_gd = unsafe { StrCmpW(w!("GeometryDash.exe"), file_name) == 0 };
+    if is_gd {
+        println!("geometey dahs found!!1");
+    } else {
+        unsafe { MessageBoxW(None, w!("This is not Geometry Dash."), w!("wtf!!!"), MB_ICONERROR); }
+    }
+
     unsafe { FreeLibraryAndExitThread(hinst_dll, 0); }
 }
 
