@@ -58,6 +58,8 @@ pkgs.mkShell {
   shellHook = ''
     # Install required configuration
     ${podmanSetupScript}
+
+    rustup default stable
   '';
 
 }
