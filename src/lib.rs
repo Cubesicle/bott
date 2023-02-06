@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use windows::w;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{HINSTANCE, MAX_PATH };
-use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleFileNameW };
+use windows::Win32::Foundation::{ HINSTANCE, MAX_PATH };
+use windows::Win32::System::LibraryLoader::{ FreeLibraryAndExitThread, GetModuleFileNameW };
 use windows::Win32::System::SystemServices::*;
 use windows::Win32::UI::Shell::{ PathFindFileNameW, StrCmpW };
 use windows::Win32::UI::WindowsAndMessaging::{ MB_ICONERROR, MessageBoxW };
