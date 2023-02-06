@@ -1,17 +1,11 @@
 use std::ffi::c_void;
 use windows::w;
 use windows::core::PCWSTR;
-use windows::Win32::{ 
-    Foundation::HINSTANCE,
-    Foundation::MAX_PATH,
-    System::LibraryLoader::FreeLibraryAndExitThread,
-    System::LibraryLoader::GetModuleFileNameW,
-    System::SystemServices::*,
-    UI::Shell::PathFindFileNameW,
-    UI::Shell::StrCmpW,
-    UI::WindowsAndMessaging::MB_ICONERROR,
-    UI::WindowsAndMessaging::MessageBoxW,
-};
+use windows::Win32::Foundation::{HINSTANCE, MAX_PATH };
+use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleFileNameW };
+use windows::Win32::System::SystemServices::*;
+use windows::Win32::UI::Shell::{ PathFindFileNameW, StrCmpW };
+use windows::Win32::UI::WindowsAndMessaging::{ MB_ICONERROR, MessageBoxW };
 
 fn main_thread(hinst_dll: HINSTANCE) {
     let mut file_path_utf16 = [0; MAX_PATH as usize];
