@@ -1,5 +1,5 @@
-mod err;
-mod gui;
+mod errbox;
+mod hooks;
 
 use std::ffi::c_void;
 use windows::core::PCWSTR;
@@ -11,13 +11,11 @@ use windows::Win32::UI::Shell::{PathFindFileNameW, StrCmpW};
 
 fn main_thread(hinst_dll: HINSTANCE) {
     unsafe {
-        windows::Win32::System::Console::AllocConsole();
-    } // TODO remove
+        windows::Win32::System::Console::AllocConsole(); // TODO: remove
+    }
 
     let mut file_path_utf16 = [0; MAX_PATH as usize];
-    unsafe {
-        GetModuleFileNameW(None, &mut file_path_utf16);
-    }
+    unsafe { GetModuleFileNameW(None, &mut file_path_utf16); }
 
     let file_path = PCWSTR::from_raw(file_path_utf16.as_ptr());
     let file_name = unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
@@ -25,7 +23,7 @@ fn main_thread(hinst_dll: HINSTANCE) {
     let is_gd = unsafe { StrCmpW(w!("GeometryDash.exe"), file_name) == 0 };
     if is_gd {
         println!("geometey dahs found!!1");
-        gui::init().unwrap_or_else(|err| errbox!(err));
+        hooks::load().unwrap_or_else(|err| errbox!(err));
     } else {
         errbox!("This is not Geometry Dash.");
     }
@@ -43,7 +41,7 @@ extern "system" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) ->
             true
         }
         DLL_PROCESS_DETACH => {
-            gui::uninit();
+            hooks::unload().unwrap_or_else(|err| errbox!(err));
             true
         }
         _ => false,
