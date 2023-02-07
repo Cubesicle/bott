@@ -1,0 +1,61 @@
+use detour::static_detour;
+use std::error::Error;
+use std::ffi::CString;
+use windows::core::{PCSTR, PCWSTR};
+use windows::Win32::Graphics::Gdi::HDC;
+use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
+
+static_detour! {
+    static WGLSwapBuffersHook: extern "system" fn(HDC);
+}
+
+type FnWGLSwapBuffers = extern "system" fn(HDC);
+
+pub fn init() -> Result<(), Box<dyn Error>> {
+    let address = get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?;
+
+    let target: FnWGLSwapBuffers = unsafe {
+        std::mem::transmute(address)
+    };
+
+    println!("{address}");
+    // unsafe {
+    //     WGLSwapBuffersHook
+    //         .initialize(target, wgl_swap_buffers_detour)?
+    //         .enable()?;
+    // }
+
+    Ok(())
+}
+
+fn wgl_swap_buffers_detour(hdc: HDC) {
+    println!("buffer be swaping");
+    WGLSwapBuffersHook.call(hdc);
+}
+
+fn get_module_symbol_address(module: &str, symbol: &str) -> Result<usize, String> {
+    let module_utf16 = module
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect::<Vec<u16>>();
+    let symbol_ansi = CString::new(symbol).unwrap_or_default();
+    unsafe {
+        let handle = if let Ok(handle) = GetModuleHandleW(PCWSTR::from_raw(module_utf16.as_ptr())) {
+            Ok(handle)
+        } else {
+            Err(format!("Could not find {}", module))
+        };
+
+        if let Some(func) = GetProcAddress(
+            handle?,
+            PCSTR::from_raw(symbol_ansi.to_bytes_with_nul().as_ptr()),
+        ) {
+            Ok(func as usize)
+        } else {
+            Err(format!(
+                "Could not get memory address of {} in {}",
+                symbol, module
+            ))
+        }
+    }
+}
