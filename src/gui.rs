@@ -14,22 +14,26 @@ type FnWGLSwapBuffers = extern "system" fn(HDC);
 pub fn init() -> Result<(), Box<dyn Error>> {
     let address = get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?;
 
-    let target: FnWGLSwapBuffers = unsafe {
-        std::mem::transmute(address)
-    };
+    let target: FnWGLSwapBuffers = unsafe { std::mem::transmute(address) };
 
-    println!("{address}");
-    // unsafe {
-    //     WGLSwapBuffersHook
-    //         .initialize(target, wgl_swap_buffers_detour)?
-    //         .enable()?;
-    // }
+    unsafe {
+        WGLSwapBuffersHook
+            .initialize(target, wgl_swap_buffers_detour)?
+            .enable()?;
+    }
 
     Ok(())
 }
 
+pub fn uninit() {
+    unsafe {
+        // TODO: don't unwrap
+        WGLSwapBuffersHook.disable().unwrap();
+    }
+}
+
 fn wgl_swap_buffers_detour(hdc: HDC) {
-    println!("buffer be swaping");
+    // println!("buffer be swapping");
     WGLSwapBuffersHook.call(hdc);
 }
 

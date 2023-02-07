@@ -42,7 +42,10 @@ extern "system" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) ->
             std::thread::spawn(move || main_thread(hinst_dll));
             true
         }
-        DLL_PROCESS_DETACH => true,
+        DLL_PROCESS_DETACH => {
+            gui::uninit();
+            true
+        }
         _ => false,
     }
 }
