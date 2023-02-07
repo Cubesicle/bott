@@ -59,7 +59,7 @@ pkgs.mkShell {
     # Install required configuration
     ${podmanSetupScript}
 
-    rustup default stable
+    rustup default nightly
   '';
 
 }
