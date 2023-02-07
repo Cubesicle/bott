@@ -11,12 +11,10 @@ static_detour! {
 
 type FnWGLSwapBuffers = extern "system" fn(HDC);
 
-pub fn init() -> Result<(), Box<dyn Error>> {
-    let address = get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?;
-
-    let target: FnWGLSwapBuffers = unsafe { std::mem::transmute(address) };
-
+pub fn load() -> Result<(), Box<dyn Error>> {
     unsafe {
+        let address = get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?;
+        let target: FnWGLSwapBuffers = std::mem::transmute(address);
         WGLSwapBuffersHook
             .initialize(target, wgl_swap_buffers_detour)?
             .enable()?;
@@ -25,11 +23,9 @@ pub fn init() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn uninit() {
-    unsafe {
-        // TODO: don't unwrap
-        WGLSwapBuffersHook.disable().unwrap();
-    }
+pub fn unload() -> Result<(), Box<dyn Error>> {
+    unsafe { WGLSwapBuffersHook.disable()?; }
+    Ok(())
 }
 
 fn wgl_swap_buffers_detour(hdc: HDC) {
@@ -48,10 +44,10 @@ fn get_module_symbol_address(module: &str, symbol: &str) -> Result<usize, String
             Ok(handle)
         } else {
             Err(format!("Could not find {}", module))
-        };
+        }?;
 
         if let Some(func) = GetProcAddress(
-            handle?,
+            handle,
             PCSTR::from_raw(symbol_ansi.to_bytes_with_nul().as_ptr()),
         ) {
             Ok(func as usize)
