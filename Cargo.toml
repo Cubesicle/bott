@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "1.0.69"
 egui = "0.20.1"
 detour = { git = "https://github.com/Hpmason/detour-rs" }
 
