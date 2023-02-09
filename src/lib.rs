@@ -14,14 +14,7 @@ fn main_thread(hinst_dll: HINSTANCE) {
         windows::Win32::System::Console::AllocConsole(); // TODO: remove
     }
 
-    let mut file_path_utf16 = [0; MAX_PATH as usize];
-    unsafe { GetModuleFileNameW(None, &mut file_path_utf16); }
-
-    let file_path = PCWSTR::from_raw(file_path_utf16.as_ptr());
-    let file_name = unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
-
-    let is_gd = unsafe { StrCmpW(w!("GeometryDash.exe"), file_name) == 0 };
-    if is_gd {
+    if is_gd() {
         println!("geometey dahs found!!1");
         hooks::load().unwrap_or_else(|err| errbox!(err));
     } else {
@@ -31,6 +24,16 @@ fn main_thread(hinst_dll: HINSTANCE) {
     unsafe {
         FreeLibraryAndExitThread(hinst_dll, 0);
     }
+}
+
+fn is_gd() -> bool {
+    let mut file_path_utf16 = [0; MAX_PATH as usize];
+    unsafe { GetModuleFileNameW(None, &mut file_path_utf16); }
+
+    let file_path = PCWSTR::from_raw(file_path_utf16.as_ptr());
+    let file_name = unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
+
+    unsafe { StrCmpW(w!("GeometryDash.exe"), file_name) == 0 }
 }
 
 #[no_mangle]
