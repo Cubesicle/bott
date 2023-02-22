@@ -29,7 +29,7 @@ pub fn unload() -> Result<()> {
 }
 
 fn wgl_swap_buffers_detour(hdc: HDC) {
-    // println!("buffer be swapping");
+    println!("buffer be swapping");
     WGLSwapBuffersHook.call(hdc);
 }
 
