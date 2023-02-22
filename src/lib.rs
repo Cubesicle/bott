@@ -17,6 +17,12 @@ fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {
         println!("geometey dahs found!!1");
         hooks::load().unwrap_or_else(|err| errbox!(err));
+
+        std::thread::sleep(std::time::Duration::from_secs(1));
+
+        hooks::unload().unwrap_or_else(|err| errbox!(err));
+        println!("hooks unloaded");
+        std::thread::sleep(std::time::Duration::from_secs(1));
     } else {
         errbox!("This is not Geometry Dash.");
     }
@@ -44,7 +50,7 @@ extern "system" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) ->
             true
         }
         DLL_PROCESS_DETACH => {
-            hooks::unload().unwrap_or_else(|err| errbox!(err));
+            println!("dll unloaded");
             true
         }
         _ => false,
