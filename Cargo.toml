@@ -8,14 +8,18 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0.69"
-egui = "0.20.1"
 detour = { git = "https://github.com/Hpmason/detour-rs" }
+egui = "0.20.1"
+
+[dependencies.egui-opengl-internal]
+git = "https://github.com/mfloob/egui-opengl-internal.git"
 
 [dependencies.windows]
 version = "0.44.0"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
+    "Win32_Graphics_OpenGL",
     "Win32_System_Console",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemServices",
