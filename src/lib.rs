@@ -1,5 +1,6 @@
-mod errbox;
-mod hooks;
+pub mod errbox;
+pub mod gui;
+pub mod hooks;
 
 use std::ffi::c_void;
 use windows::core::PCWSTR;
@@ -9,6 +10,8 @@ use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleF
 use windows::Win32::System::SystemServices::*;
 use windows::Win32::UI::Shell::{PathFindFileNameW, StrCmpW};
 
+pub static mut EXITING: bool = false;
+
 fn main_thread(hinst_dll: HINSTANCE) {
     unsafe {
         windows::Win32::System::Console::AllocConsole(); // TODO: remove
@@ -16,9 +19,10 @@ fn main_thread(hinst_dll: HINSTANCE) {
 
     if is_gd() {
         println!("geometey dahs found!!1");
+
         hooks::load().unwrap_or_else(|err| errbox!(err));
 
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        unsafe { while EXITING == false { } }
 
         hooks::unload().unwrap_or_else(|err| errbox!(err));
         println!("hooks unloaded");
@@ -28,6 +32,7 @@ fn main_thread(hinst_dll: HINSTANCE) {
     }
 
     unsafe {
+        windows::Win32::System::Console::FreeConsole();
         FreeLibraryAndExitThread(hinst_dll, 0);
     }
 }
