@@ -56,7 +56,7 @@ fn wgl_swap_buffers_detour(hdc: HDC) {
             println!("wglSwapBuffers successfully hooked.");
 
             let window = WindowFromDC(hdc);
-            gui::APP.init_default(hdc, window, gui::update);
+            gui::APP.init_default(hdc, window, |ctx, t| gui::GUI.show(ctx, t));
 
             OLD_WND_PROC = Some(transmute(SetWindowLongPtrA(
                 window,
@@ -80,6 +80,8 @@ unsafe extern "stdcall" fn call_wnd_proc_detour(
     INIT.call_once(|| {
         println!("CallWindowProcW successfully hooked.");
     });
+
+    gui::GUI.detect_keybinds(); 
 
     let egui_wants_input = gui::APP.wnd_proc(msg, wparam, lparam);
     if egui_wants_input {

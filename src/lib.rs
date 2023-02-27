@@ -20,6 +20,7 @@ fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {
         println!("geometey dahs found!!1");
 
+        unsafe { gui::GUI.init(); }
         hooks::load().unwrap_or_else(|err| errbox!(err));
 
         unsafe { while EXITING == false { } }
