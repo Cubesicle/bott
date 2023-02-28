@@ -13,6 +13,12 @@ use windows::Win32::UI::Shell::{PathFindFileNameW, StrCmpW};
 pub static mut EXITING: bool = false;
 
 fn main_thread(hinst_dll: HINSTANCE) {
+    std::panic::set_hook(Box::new(move |err| {
+        errbox!(err);
+        let _ = hooks::unload();
+        unload(hinst_dll);
+    }));
+
     unsafe {
         windows::Win32::System::Console::AllocConsole(); // TODO: remove
     }
@@ -21,21 +27,17 @@ fn main_thread(hinst_dll: HINSTANCE) {
         println!("geometey dahs found!!1");
 
         unsafe { gui::GUI.init(); }
-        hooks::load().unwrap_or_else(|err| errbox!(err));
+        hooks::load().unwrap();
 
         unsafe { while EXITING == false { } }
 
-        hooks::unload().unwrap_or_else(|err| errbox!(err));
+        hooks::unload().unwrap();
         println!("hooks unloaded");
-        std::thread::sleep(std::time::Duration::from_secs(1));
     } else {
         errbox!("This is not Geometry Dash.");
     }
 
-    unsafe {
-        windows::Win32::System::Console::FreeConsole();
-        FreeLibraryAndExitThread(hinst_dll, 0);
-    }
+    unload(hinst_dll);
 }
 
 fn is_gd() -> bool {
@@ -46,6 +48,13 @@ fn is_gd() -> bool {
     let file_name = unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
 
     unsafe { StrCmpW(w!("GeometryDash.exe"), file_name) == 0 }
+}
+
+fn unload(hinst_dll: HINSTANCE) {
+    unsafe {
+        windows::Win32::System::Console::FreeConsole(); // TODO: remove
+        FreeLibraryAndExitThread(hinst_dll, 0);
+    }
 }
 
 #[no_mangle]

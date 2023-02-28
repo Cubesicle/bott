@@ -1,6 +1,6 @@
 use crate::gui;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use detour::static_detour;
 use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, LRESULT};
 use std::ffi::CString;
@@ -32,17 +32,21 @@ pub fn load() -> Result<()> {
     Ok(())
 }
 
-pub fn unload() -> Result<()> {
+pub fn unload() -> Result<()>{
     unsafe {
         WGLSwapBuffersHook.disable()?;
     }
 
     unsafe {
-        let wnd_proc = OLD_WND_PROC.unwrap().unwrap();
+        let wnd_proc = if let Some(wnd_proc) = OLD_WND_PROC.unwrap_or_default() {
+            Ok(wnd_proc)
+        } else {
+            Err(anyhow!("Failed to get original window procedure."))
+        };
         let _: Option<WNDPROC> = Some(transmute(SetWindowLongPtrA(
             gui::APP.get_window(),
             GWLP_WNDPROC,
-            wnd_proc as usize as _,
+            wnd_proc? as usize as _,
         )));
     }
 
@@ -105,7 +109,7 @@ pub fn get_module_symbol_address(module: &str, symbol: &str) -> Result<*const c_
         ) {
             Ok(func as *const c_void)
         } else {
-            bail!(format!("Could not get memory address of {} in {}", symbol, module))
+            Err(anyhow!("Could not get memory address of {} in {}", symbol, module))
         }
     }
 }
