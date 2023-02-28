@@ -2,6 +2,7 @@ pub mod errbox;
 pub mod gui;
 pub mod hooks;
 
+use log::info;
 use std::ffi::c_void;
 use windows::core::PCWSTR;
 use windows::w;
@@ -19,12 +20,10 @@ fn main_thread(hinst_dll: HINSTANCE) {
         unload(hinst_dll);
     }));
 
-    unsafe {
-        windows::Win32::System::Console::AllocConsole(); // TODO: remove
-    }
-
     if is_gd() {
-        println!("geometey dahs found!!1");
+        egui_logger::init().unwrap(); 
+
+        info!("geometey dahs found!!1");
 
         unsafe { gui::GUI.init(); }
         hooks::load().unwrap();
@@ -32,7 +31,6 @@ fn main_thread(hinst_dll: HINSTANCE) {
         unsafe { while EXITING == false { } }
 
         hooks::unload().unwrap();
-        println!("hooks unloaded");
     } else {
         errbox!("This is not Geometry Dash.");
     }
@@ -52,7 +50,6 @@ fn is_gd() -> bool {
 
 fn unload(hinst_dll: HINSTANCE) {
     unsafe {
-        windows::Win32::System::Console::FreeConsole(); // TODO: remove
         FreeLibraryAndExitThread(hinst_dll, 0);
     }
 }
@@ -65,7 +62,6 @@ extern "system" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) ->
             true
         }
         DLL_PROCESS_DETACH => {
-            println!("dll unloaded");
             true
         }
         _ => false,

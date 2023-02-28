@@ -1,12 +1,13 @@
 use crate::gui;
 
 use anyhow::{anyhow, Context, Result};
-use detour::static_detour;
-use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, LRESULT};
+use log::info;
+use retour::static_detour;
 use std::ffi::CString;
 use std::mem::transmute;
 use std::os::raw::c_void;
 use std::sync::Once;
+use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, LRESULT};
 use windows::core::{PCSTR, PCWSTR};
 use windows::Win32::Graphics::Gdi::{HDC, WindowFromDC};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
@@ -37,6 +38,8 @@ pub fn unload() -> Result<()>{
         WGLSwapBuffersHook.disable()?;
     }
 
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
     unsafe {
         let wnd_proc = if let Some(wnd_proc) = OLD_WND_PROC.unwrap_or_default() {
             Ok(wnd_proc)
@@ -57,7 +60,7 @@ fn wgl_swap_buffers_detour(hdc: HDC) {
     unsafe {
         static INIT: Once = Once::new();
         INIT.call_once(|| {
-            println!("wglSwapBuffers successfully hooked.");
+            info!("wglSwapBuffers successfully hooked.");
 
             let window = WindowFromDC(hdc);
             gui::APP.init_default(hdc, window, |ctx, t| gui::GUI.show(ctx, t));
@@ -82,7 +85,7 @@ unsafe extern "stdcall" fn call_wnd_proc_detour(
 ) -> LRESULT {
     static INIT: Once = Once::new();
     INIT.call_once(|| {
-        println!("CallWindowProcW successfully hooked.");
+        info!("CallWindowProcW successfully hooked.");
     });
 
     gui::GUI.detect_keybinds(); 

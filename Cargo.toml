@@ -7,15 +7,15 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "1.0.69"
-detour = { git = "https://github.com/Hpmason/detour-rs" }
-egui = "0.20.1"
-
-[dependencies.egui-opengl-internal]
-git = "https://github.com/mfloob/egui-opengl-internal.git"
+anyhow = "^1.0.0"
+egui = "^0.21.0"
+egui_logger = "^0.3.0"
+egui-opengl-internal = { git = "https://github.com/unknowntrojan/egui-opengl-internal.git" }
+log = "^0.4.0"
+retour = "^0.1.0"
 
 [dependencies.windows]
-version = "0.44.0"
+version = "^0.44.0"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
