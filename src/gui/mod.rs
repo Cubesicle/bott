@@ -81,11 +81,15 @@ impl RBotGUI {
                         ui.label("Made with ❤ by Cubesicle.");
                     });
                 });
-                match &self.current_page {
-                    page => {
-                        self.pages.as_mut().unwrap().get_mut(page).unwrap().ui(ui);
-                    }
-                }
+                egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::ScrollArea::both().show(ui, |ui| {
+                        match &self.current_page {
+                            page => {
+                                self.pages.as_mut().unwrap().get_mut(page).unwrap().ui(ui);
+                            }
+                        }
+                    });
+                });
             });
     }
 
