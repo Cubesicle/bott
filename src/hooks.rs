@@ -11,7 +11,7 @@ use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, LRESULT};
 use windows::core::{PCSTR, PCWSTR};
 use windows::Win32::Graphics::Gdi::{HDC, WindowFromDC};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
-use windows::Win32::UI::WindowsAndMessaging::{GWLP_WNDPROC, WNDPROC, SetWindowLongPtrA, CallWindowProcW};
+use windows::Win32::UI::WindowsAndMessaging::{GWLP_WNDPROC, WNDPROC, SetWindowLongPtrA, CallWindowProcW, DefWindowProcW};
 
 static mut OLD_WND_PROC: Option<WNDPROC> = None;
 
@@ -46,11 +46,11 @@ pub fn unload() -> Result<()>{
         } else {
             Err(anyhow!("Failed to get original window procedure."))
         };
-        let _: Option<WNDPROC> = Some(transmute(SetWindowLongPtrA(
+        SetWindowLongPtrA(
             gui::APP.get_window(),
             GWLP_WNDPROC,
             wnd_proc? as usize as _,
-        )));
+        );
     }
 
     Ok(())
@@ -77,7 +77,7 @@ fn wgl_swap_buffers_detour(hdc: HDC) {
     }
 }
 
-unsafe extern "stdcall" fn call_wnd_proc_detour(
+unsafe extern "system" fn call_wnd_proc_detour(
     hwnd: HWND,
     msg: u32,
     wparam: WPARAM,
@@ -92,7 +92,7 @@ unsafe extern "stdcall" fn call_wnd_proc_detour(
 
     let egui_wants_input = gui::APP.wnd_proc(msg, wparam, lparam);
     if egui_wants_input {
-        return LRESULT(1);
+        return DefWindowProcW(hwnd, msg, wparam, lparam)
     }
 
     CallWindowProcW(OLD_WND_PROC.unwrap(), hwnd, msg, wparam, lparam)
