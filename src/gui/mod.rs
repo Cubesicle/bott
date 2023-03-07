@@ -40,9 +40,6 @@ impl RBotGUI {
     pub fn name(&self) -> &'static str { "rBot" }
 
     pub fn show(&mut self, ctx: &egui::Context, _: &mut i32) {
-        let inner_margin = 2.0;
-        let outer_margin = 8.0;
-
         egui::Window::new(self.name())
             .open(&mut self.open)
             .show(ctx, |ui| {
@@ -73,10 +70,10 @@ impl RBotGUI {
                             }
                         });
                     });
-                    ui.add_space(inner_margin);
+                    ui.add_space(2.0);
                 });
                 egui::TopBottomPanel::bottom("footer").min_height(0.0).show_inside(ui, |ui| {
-                    ui.add_space(outer_margin);
+                    ui.add_space(8.0);
                     ui.vertical_centered(|ui| {
                         ui.label("Made with ❤ by Cubesicle.");
                     });
