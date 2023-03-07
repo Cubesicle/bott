@@ -88,11 +88,11 @@ unsafe extern "system" fn call_wnd_proc_detour(
         info!("CallWindowProcW successfully hooked.");
     });
 
-    gui::GUI.detect_keybinds(); 
+    gui::GUI.handle_keydown(msg, wparam, lparam); 
 
     let egui_wants_input = gui::APP.wnd_proc(msg, wparam, lparam);
     if egui_wants_input {
-        return DefWindowProcW(hwnd, msg, wparam, lparam)
+        return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
 
     CallWindowProcW(OLD_WND_PROC.unwrap(), hwnd, msg, wparam, lparam)

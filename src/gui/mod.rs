@@ -1,6 +1,6 @@
 use egui_opengl_internal::OpenGLApp;
 use std::{collections::HashMap, hash::Hash};
-use windows::Win32::UI::Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_RSHIFT, GetAsyncKeyState};
+use windows::Win32::{UI::{Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_RSHIFT, VK_RCONTROL, VK_SHIFT, MapVirtualKeyW, MAPVK_VSC_TO_VK_EX, VK_CONTROL, VK_MENU, VK_LCONTROL, VK_RMENU, VK_LMENU}, WindowsAndMessaging::{WM_KEYDOWN, KF_EXTENDED}}, Foundation::{WPARAM, LPARAM}};
 
 mod pages;
 
@@ -90,12 +90,31 @@ impl RBotGUI {
             });
     }
 
-    pub fn detect_keybinds(&mut self) {
-        unsafe {
-            let key = self.keybinds.as_ref().unwrap().get(&Keybinds::ToggleGUI).unwrap().0 as i32;
-            if GetAsyncKeyState(key) & 0x01 == 1 {
-                self.open = !self.open;
+    pub fn handle_keydown(&mut self, msg: u32, wparam: WPARAM, lparam: LPARAM) {
+        if msg != WM_KEYDOWN { return; }
+
+        let vk_code: u16 = {
+            let vk_code = (wparam.0 & 0xffff) as u16;
+
+            let key_flags = ((lparam.0 >> 16) & 0xffff) as u16;
+
+            let scan_code = (key_flags & 0xff) as u8;
+            let is_extended_key = (key_flags as u32 & KF_EXTENDED) == KF_EXTENDED;
+
+            if vk_code == VK_SHIFT.0 {
+                unsafe { (MapVirtualKeyW(scan_code as u32, MAPVK_VSC_TO_VK_EX) & 0xffff) as u16 }
+            } else if vk_code == VK_CONTROL.0 {
+                if is_extended_key { VK_RCONTROL.0 } else { VK_LCONTROL.0 }
+            } else if vk_code == VK_MENU.0 {
+                if is_extended_key { VK_RMENU.0 } else { VK_LMENU.0 }
+            } else {
+                vk_code
             }
+        };
+
+        let key = self.keybinds.as_ref().unwrap().get(&Keybinds::ToggleGUI).unwrap().0;
+        if vk_code == key {
+            self.open = !self.open;
         }
     }
 }
