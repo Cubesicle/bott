@@ -9,7 +9,7 @@ macro_rules! errbox {
             windows::Win32::UI::WindowsAndMessaging::MessageBoxW(
                 None,
                 windows::core::PCWSTR::from_raw(msg_utf16.as_ptr()),
-                windows::w!("Error"),
+                windows::core::w!("Error"),
                 windows::Win32::UI::WindowsAndMessaging::MB_ICONERROR,
             );
         }

@@ -3,9 +3,10 @@ pub mod gui;
 pub mod hooks;
 
 use log::info;
+use std::env;
 use std::ffi::c_void;
 use windows::core::PCWSTR;
-use windows::w;
+use windows::core::w;
 use windows::Win32::Foundation::{HINSTANCE, MAX_PATH};
 use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleFileNameW};
 use windows::Win32::System::SystemServices::*;
@@ -21,8 +22,9 @@ fn main_thread(hinst_dll: HINSTANCE) {
     }));
 
     if is_gd() {
-        egui_logger::init().unwrap(); 
-
+        env::set_var("RUST_LOG", "trace");
+        unsafe { windows::Win32::System::Console::AllocConsole() };
+        pretty_env_logger::init_timed();
         info!("geometey dahs found!!1");
 
         unsafe { gui::GUI.init(); }
