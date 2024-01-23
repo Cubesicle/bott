@@ -1,14 +1,14 @@
+use windows::Win32::System::Console::{AllocConsole, FreeConsole};
+
 #[derive(Eq, Hash, PartialEq)]
 pub struct Debug { }
 
 impl super::Page for Debug {
     fn ui(&mut self, ui: &mut egui::Ui) {
         ui.heading("Debug");
-        if ui.button("lols").hovered() {
-            log::info!("wow");
+        if ui.button("Toggle console").clicked() {
+            unsafe { if AllocConsole().is_err() { let _ = FreeConsole(); } }
         }
-        ui.separator();
-        egui_logger::logger_ui(ui);
     }
 }
 
