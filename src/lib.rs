@@ -15,12 +15,6 @@ use windows::Win32::UI::Shell::{PathFindFileNameW, StrCmpW};
 pub static mut EXITING: bool = false;
 
 fn main_thread(hinst_dll: HINSTANCE) {
-    std::panic::set_hook(Box::new(move |err| {
-        errbox!(err);
-        let _ = hooks::unload();
-        unload(hinst_dll);
-    }));
-
     if is_gd() {
         env::set_var("RUST_LOG", "trace");
         unsafe { windows::Win32::System::Console::AllocConsole() };
@@ -51,6 +45,7 @@ fn is_gd() -> bool {
 }
 
 fn unload(hinst_dll: HINSTANCE) {
+    info!("Unloading rBot.");
     unsafe {
         FreeLibraryAndExitThread(hinst_dll, 0);
     }
@@ -60,7 +55,16 @@ fn unload(hinst_dll: HINSTANCE) {
 extern "system" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) -> bool {
     match reason {
         DLL_PROCESS_ATTACH => {
+            let orig_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |panic_info| {
+                orig_hook(panic_info);
+                errbox!(panic_info);
+                let _ = hooks::unload();
+                unload(hinst_dll);
+            }));
+
             std::thread::spawn(move || main_thread(hinst_dll));
+
             true
         }
         DLL_PROCESS_DETACH => {
