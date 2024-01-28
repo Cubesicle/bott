@@ -2,6 +2,8 @@ pub mod errbox;
 pub mod gui;
 pub mod hooks;
 
+use egui::mutex::Mutex;
+use lazy_static::lazy_static;
 use log::info;
 use std::env;
 use std::ffi::c_void;
@@ -12,7 +14,7 @@ use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleF
 use windows::Win32::System::SystemServices::*;
 use windows::Win32::UI::Shell::{PathFindFileNameW, StrCmpW};
 
-pub static mut EXITING: bool = false;
+lazy_static! { static ref EXITING: Mutex<bool> = Mutex::new(false); }
 
 fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {
@@ -24,7 +26,7 @@ fn main_thread(hinst_dll: HINSTANCE) {
         unsafe { gui::GUI.init(); }
         hooks::load().unwrap();
 
-        unsafe { while EXITING == false { } }
+        while *EXITING.lock() == false { }
 
         hooks::unload().unwrap();
     } else {

@@ -66,7 +66,7 @@ impl RBotGUI {
                                 ui.close_menu();
                             }
                             if ui.button("Yes").clicked() {                
-                                unsafe { crate::EXITING = true; }
+                                *crate::EXITING.lock() = true;
                             }
                         });
                     });
