@@ -11,7 +11,7 @@ use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, LRESULT};
 use windows::core::{PCSTR, PCWSTR};
 use windows::Win32::Graphics::Gdi::{HDC, WindowFromDC};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
-use windows::Win32::UI::WindowsAndMessaging::{GWLP_WNDPROC, WNDPROC, SetWindowLongPtrA, CallWindowProcW, DefWindowProcW};
+use windows::Win32::UI::WindowsAndMessaging::{CallWindowProcW, DefWindowProcW, SetWindowLongPtrA, GWLP_WNDPROC, WNDPROC};
 
 static mut OLD_WND_PROC: Option<WNDPROC> = None;
 
@@ -53,16 +53,18 @@ pub fn unload() -> Result<()>{
         );
     }
 
+    info!("Hooks unloaded.");
     Ok(())
 }
 
 fn wgl_swap_buffers_detour(hdc: HDC) {
     unsafe {
+        let window = WindowFromDC(hdc);
+
         static INIT: Once = Once::new();
         INIT.call_once(|| {
             info!("wglSwapBuffers successfully hooked.");
 
-            let window = WindowFromDC(hdc);
             gui::APP.init_default(hdc, window, |ctx, t| gui::GUI.show(ctx, t));
 
             OLD_WND_PROC = Some(transmute(SetWindowLongPtrA(
@@ -71,6 +73,14 @@ fn wgl_swap_buffers_detour(hdc: HDC) {
                 call_wnd_proc_detour as usize as _,
             )));
         });
+
+        if !gui::APP.get_window().eq(&window) {
+            SetWindowLongPtrA(
+                window,
+                GWLP_WNDPROC,
+                call_wnd_proc_detour as usize as _,
+            );
+        }
 
         gui::APP.render(hdc);
         WGLSwapBuffersHook.call(hdc);
