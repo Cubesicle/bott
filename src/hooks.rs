@@ -22,72 +22,64 @@ static_detour! {
 type FnWGLSwapBuffers = extern "system" fn(HDC);
 
 pub fn load() -> Result<()> {
-    unsafe {
-        let address = get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?;
-        let target: FnWGLSwapBuffers = std::mem::transmute(address);
-        WGLSwapBuffersHook
-            .initialize(target, wgl_swap_buffers_detour)?
-            .enable()?;
-    }
+    let address = get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?;
+    let target: FnWGLSwapBuffers = unsafe { std::mem::transmute(address) };
+    unsafe { WGLSwapBuffersHook
+        .initialize(target, wgl_swap_buffers_detour)?
+        .enable() }?;
 
     Ok(())
 }
 
 pub fn unload() -> Result<()>{
-    unsafe {
-        WGLSwapBuffersHook.disable()?;
-    }
+    unsafe { WGLSwapBuffersHook.disable() }?;
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
-    unsafe {
-        let wnd_proc = if let Some(wnd_proc) = OLD_WND_PROC.unwrap_or_default() {
-            Ok(wnd_proc)
-        } else {
-            Err(anyhow!("Failed to get original window procedure."))
-        };
-        SetWindowLongPtrA(
-            gui::APP.get_window(),
-            GWLP_WNDPROC,
-            wnd_proc? as usize as _,
-        );
-    }
+    let wnd_proc = if let Some(wnd_proc) = unsafe { OLD_WND_PROC.unwrap_or_default() } {
+        Ok(wnd_proc)
+    } else {
+        Err(anyhow!("Failed to get original window procedure."))
+    };
+    unsafe { SetWindowLongPtrA(
+        gui::APP.get_window(),
+        GWLP_WNDPROC,
+        wnd_proc? as usize as _,
+    ) };
 
     info!("Hooks unloaded.");
     Ok(())
 }
 
 fn wgl_swap_buffers_detour(hdc: HDC) {
-    unsafe {
-        let window = WindowFromDC(hdc);
+    let window = unsafe { WindowFromDC(hdc) };
 
-        static INIT: Once = Once::new();
-        INIT.call_once(|| {
-            info!("wglSwapBuffers successfully hooked.");
+    static INIT: Once = Once::new();
+    INIT.call_once(|| {
+        info!("wglSwapBuffers successfully hooked.");
 
-            gui::APP.init_default(hdc, window, |ctx, t| gui::GUI.show(ctx, t));
+        unsafe { gui::APP.init_default(hdc, window, |ctx, t| gui::GUI.show(ctx, t)) };
 
-            OLD_WND_PROC = Some(transmute(SetWindowLongPtrA(
-                window,
-                GWLP_WNDPROC,
-                call_wnd_proc_detour as usize as _,
-            )));
-        });
+        unsafe { OLD_WND_PROC = Some(transmute(SetWindowLongPtrA(
+            window,
+            GWLP_WNDPROC,
+            call_wnd_proc_detour as usize as _,
+        ))) };
+    });
 
-        if !gui::APP.get_window().eq(&window) {
-            SetWindowLongPtrA(
-                window,
-                GWLP_WNDPROC,
-                call_wnd_proc_detour as usize as _,
-            );
-        }
-
-        gui::APP.render(hdc);
-        WGLSwapBuffersHook.call(hdc);
+    if !unsafe { gui::APP.get_window().eq(&window) } {
+        unsafe { SetWindowLongPtrA(
+            window,
+            GWLP_WNDPROC,
+            call_wnd_proc_detour as usize as _,
+        ) };
     }
+
+    unsafe { gui::APP.render(hdc) };
+    WGLSwapBuffersHook.call(hdc);
 }
 
-unsafe extern "system" fn call_wnd_proc_detour(
+extern "system" fn call_wnd_proc_detour(
     hwnd: HWND,
     msg: u32,
     wparam: WPARAM,
@@ -98,14 +90,14 @@ unsafe extern "system" fn call_wnd_proc_detour(
         info!("CallWindowProcW successfully hooked.");
     });
 
-    gui::GUI.handle_keydown(msg, wparam, lparam); 
+    unsafe { gui::GUI.handle_keydown(msg, wparam, lparam) }; 
 
-    let egui_wants_input = gui::APP.wnd_proc(msg, wparam, lparam);
+    let egui_wants_input = unsafe { gui::APP.wnd_proc(msg, wparam, lparam) };
     if egui_wants_input {
-        return DefWindowProcW(hwnd, msg, wparam, lparam);
+        return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
     }
 
-    CallWindowProcW(OLD_WND_PROC.unwrap(), hwnd, msg, wparam, lparam)
+    unsafe { CallWindowProcW(OLD_WND_PROC.unwrap(), hwnd, msg, wparam, lparam) }
 }
 
 pub fn get_module_symbol_address(module: &str, symbol: &str) -> Result<*const c_void> {
@@ -114,15 +106,13 @@ pub fn get_module_symbol_address(module: &str, symbol: &str) -> Result<*const c_
         .chain(std::iter::once(0))
         .collect::<Vec<u16>>();
     let symbol_ansi = CString::new(symbol).unwrap_or_default();
-    unsafe {
-        let handle = GetModuleHandleW(PCWSTR::from_raw(module_utf16.as_ptr())).context(format!("Could not find {}", module))?;
-        if let Some(func) = GetProcAddress(
-            handle,
-            PCSTR::from_raw(symbol_ansi.to_bytes_with_nul().as_ptr()),
-        ) {
-            Ok(func as *const c_void)
-        } else {
-            Err(anyhow!("Could not get memory address of {} in {}", symbol, module))
-        }
+    let handle = unsafe { GetModuleHandleW(PCWSTR::from_raw(module_utf16.as_ptr())) }.context(format!("Could not find {}", module))?;
+    if let Some(func) = unsafe { GetProcAddress(
+        handle,
+        PCSTR::from_raw(symbol_ansi.to_bytes_with_nul().as_ptr()),
+    ) } {
+        Ok(func as *const c_void)
+    } else {
+        Err(anyhow!("Could not get memory address of {} in {}", symbol, module))
     }
 }

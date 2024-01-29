@@ -19,11 +19,11 @@ lazy_static! { static ref EXITING: Mutex<bool> = Mutex::new(false); }
 fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {
         env::set_var("RUST_LOG", "trace");
-        unsafe { windows::Win32::System::Console::AllocConsole() };
+        unsafe { windows::Win32::System::Console::AllocConsole(); }
         pretty_env_logger::init_timed();
         info!("geometey dahs found!!1");
 
-        unsafe { gui::GUI.init(); }
+        unsafe { gui::GUI.init() };
         hooks::load().unwrap();
 
         while *EXITING.lock() == false { }
@@ -38,7 +38,7 @@ fn main_thread(hinst_dll: HINSTANCE) {
 
 fn is_gd() -> bool {
     let mut file_path_utf16 = [0; MAX_PATH as usize];
-    unsafe { GetModuleFileNameW(None, &mut file_path_utf16); }
+    unsafe { GetModuleFileNameW(None, &mut file_path_utf16) };
 
     let file_path = PCWSTR::from_raw(file_path_utf16.as_ptr());
     let file_name = unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
@@ -48,9 +48,7 @@ fn is_gd() -> bool {
 
 fn unload(hinst_dll: HINSTANCE) {
     info!("Unloading rBot.");
-    unsafe {
-        FreeLibraryAndExitThread(hinst_dll, 0);
-    }
+    unsafe { FreeLibraryAndExitThread(hinst_dll, 0) };
 }
 
 #[no_mangle]
