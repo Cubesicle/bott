@@ -3,6 +3,7 @@ use std::{collections::HashMap, hash::Hash};
 use windows::Win32::{UI::{Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_RSHIFT, VK_RCONTROL, VK_SHIFT, MapVirtualKeyW, MAPVK_VSC_TO_VK_EX, VK_CONTROL, VK_MENU, VK_LCONTROL, VK_RMENU, VK_LMENU}, WindowsAndMessaging::{WM_KEYDOWN, KF_EXTENDED}}, Foundation::{WPARAM, LPARAM}};
 
 mod pages;
+use pages::{Page, Pages};
 
 #[derive(Eq, Hash, PartialEq)]
 enum Keybinds {
@@ -11,8 +12,8 @@ enum Keybinds {
 
 pub struct RBotGUI {
     open: bool,
-    current_page: pages::Pages,
-    pages: Option<HashMap<pages::Pages, Box<dyn pages::Page>>>,
+    current_page: Pages,
+    pages: Option<HashMap<Pages, Box<dyn Page>>>,
     keybinds: Option<HashMap<Keybinds, VIRTUAL_KEY>>,
 }
 
@@ -20,17 +21,18 @@ impl RBotGUI {
     pub const fn new() -> Self {
         Self {
             open: true,
-            current_page: pages::Pages::Record,
+            current_page: Pages::Record,
             pages: None,
             keybinds: None,
         }
     }
 
     pub fn init(&mut self) {
-        self.pages = Some(HashMap::new());
-        self.pages.as_mut().unwrap().insert(pages::Pages::Record, Box::new(pages::Record::default()));
-        self.pages.as_mut().unwrap().insert(pages::Pages::Replay, Box::new(pages::Replay::default()));
-        self.pages.as_mut().unwrap().insert(pages::Pages::Debug, Box::new(pages::Debug::default()));
+        self.pages = Some(HashMap::from([
+            (Pages::Record, Box::new(pages::Record::default()) as Box<dyn Page>),
+            (Pages::Replay, Box::new(pages::Replay::default()) as Box<dyn Page>),
+            (Pages::Debug, Box::new(pages::Debug::default()) as Box<dyn Page>),
+        ]));
 
         self.keybinds = Some(HashMap::from([
             (Keybinds::ToggleGUI, VK_RSHIFT)
@@ -47,17 +49,17 @@ impl RBotGUI {
                     ui.horizontal(|ui| {
                         ui.selectable_value(
                             &mut self.current_page,
-                            pages::Pages::Record,
+                            Pages::Record,
                             "Record"
                         );
                         ui.selectable_value(
                             &mut self.current_page,
-                            pages::Pages::Replay,
+                            Pages::Replay,
                             "Replay"
                         );
                         ui.selectable_value(
                             &mut self.current_page,
-                            pages::Pages::Debug,
+                            Pages::Debug,
                             "Debug"
                         );
                         ui.menu_button("Eject", |ui| {
