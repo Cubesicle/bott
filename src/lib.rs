@@ -23,7 +23,7 @@ fn main_thread(hinst_dll: HINSTANCE) {
         pretty_env_logger::init_timed();
         info!("geometey dahs found!!1");
 
-        unsafe { gui::GUI.init() };
+        gui::GUI.lock().init();
         hooks::load().unwrap();
 
         while *EXITING.lock() == false { }

@@ -1,19 +1,26 @@
+use egui::mutex::Mutex;
 use egui_opengl_internal::OpenGLApp;
+use lazy_static::lazy_static;
 use std::{collections::HashMap, hash::Hash};
 use windows::Win32::{UI::{Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_RSHIFT, VK_RCONTROL, VK_SHIFT, MapVirtualKeyW, MAPVK_VSC_TO_VK_EX, VK_CONTROL, VK_MENU, VK_LCONTROL, VK_RMENU, VK_LMENU}, WindowsAndMessaging::{WM_KEYDOWN, KF_EXTENDED}}, Foundation::{WPARAM, LPARAM}};
 
 mod pages;
-use pages::{Page, Pages};
 
 #[derive(Eq, Hash, PartialEq)]
 enum Keybinds {
     ToggleGUI
 }
 
+#[derive(Eq, PartialEq)]
+enum Pages {
+    Record,
+    Replay,
+    Debug,
+}
+
 pub struct RBotGUI {
     open: bool,
     current_page: Pages,
-    pages: Option<HashMap<Pages, Box<dyn Page>>>,
     keybinds: Option<HashMap<Keybinds, VIRTUAL_KEY>>,
 }
 
@@ -22,18 +29,11 @@ impl RBotGUI {
         Self {
             open: true,
             current_page: Pages::Record,
-            pages: None,
             keybinds: None,
         }
     }
 
     pub fn init(&mut self) {
-        self.pages = Some(HashMap::from([
-            (Pages::Record, Box::new(pages::Record::default()) as Box<dyn Page>),
-            (Pages::Replay, Box::new(pages::Replay::default()) as Box<dyn Page>),
-            (Pages::Debug, Box::new(pages::Debug::default()) as Box<dyn Page>),
-        ]));
-
         self.keybinds = Some(HashMap::from([
             (Keybinds::ToggleGUI, VK_RSHIFT)
         ]));
@@ -64,12 +64,8 @@ impl RBotGUI {
                         );
                         ui.menu_button("Eject", |ui| {
                             ui.label("Do you want to eject the DLL?");
-                            if ui.button("No").clicked() {
-                                ui.close_menu();
-                            }
-                            if ui.button("Yes").clicked() {                
-                                *crate::EXITING.lock() = true;
-                            }
+                            if ui.button("No").clicked() { ui.close_menu(); }
+                            if ui.button("Yes").clicked() { *crate::EXITING.lock() = true; }
                         });
                     });
                     ui.add_space(2.0);
@@ -82,10 +78,10 @@ impl RBotGUI {
                 });
                 egui::CentralPanel::default().show_inside(ui, |ui| {
                     egui::ScrollArea::both().show(ui, |ui| {
-                        match &self.current_page {
-                            page => {
-                                self.pages.as_mut().unwrap().get_mut(page).unwrap().ui(ui);
-                            }
+                        match self.current_page {
+                            Pages::Record => ui.add(pages::Record::new()),
+                            Pages::Replay => ui.add(pages::Replay::new()),
+                            Pages::Debug => ui.add(pages::Debug::new()),
                         }
                     });
                 });
@@ -122,4 +118,4 @@ impl RBotGUI {
 }
 
 pub static mut APP: OpenGLApp<i32> = OpenGLApp::new();
-pub static mut GUI: RBotGUI = RBotGUI::new();
+lazy_static! { pub static ref GUI: Mutex<RBotGUI> = Mutex::new(RBotGUI::new()); }

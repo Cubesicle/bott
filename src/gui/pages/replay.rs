@@ -1,12 +1,13 @@
-#[derive(Eq, Hash, PartialEq)]
+use egui::{Response, Ui, Widget};
+
 pub struct Replay {}
 
-impl super::Page for Replay {
-    fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Replay");
-    }
+impl Replay {
+    pub fn new() -> Self { Self {} }
 }
 
-impl Default for Replay {
-    fn default() -> Self { Self {} }
+impl Widget for Replay {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.heading("Replay")
+    }
 }

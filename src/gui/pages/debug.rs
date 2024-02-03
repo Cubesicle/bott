@@ -1,17 +1,19 @@
+use egui::{Response, Ui, Widget};
 use windows::Win32::System::Console::{AllocConsole, FreeConsole};
 
-#[derive(Eq, Hash, PartialEq)]
 pub struct Debug { }
 
-impl super::Page for Debug {
-    fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Debug");
-        if ui.button("Toggle console").clicked() {
-            unsafe { if AllocConsole().is_err() { let _ = FreeConsole(); } }
-        }
-    }
+impl Debug {
+    pub fn new() -> Self { Self {} }
 }
 
-impl Default for Debug {
-    fn default() -> Self { Self {} }
+impl Widget for Debug {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.heading("Debug");
+        let button = ui.button("Toggle console");
+        if button.clicked() {
+            unsafe { if AllocConsole().is_err() { let _ = FreeConsole(); } }
+        }
+        button
+    }
 }

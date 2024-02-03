@@ -1,12 +1,13 @@
-#[derive(Eq, Hash, PartialEq)]
+use egui::{Response, Ui, Widget};
+
 pub struct Record {}
 
-impl super::Page for Record {
-    fn ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Record");
-    }
+impl Record {
+    pub fn new() -> Self { Self {} }
 }
 
-impl Default for Record {
-    fn default() -> Self { Self {} }
+impl Widget for Record {
+    fn ui(self, ui: &mut Ui) -> Response {
+        ui.heading("Record")
+    }
 }
