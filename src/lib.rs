@@ -2,31 +2,35 @@ pub mod errbox;
 pub mod gui;
 pub mod hooks;
 
+use std::ffi::c_void;
+
 use egui::mutex::Mutex;
 use lazy_static::lazy_static;
 use log::info;
-use std::env;
-use std::ffi::c_void;
-use windows::core::PCWSTR;
-use windows::core::w;
+use windows::core::{w, PCWSTR};
 use windows::Win32::Foundation::{HINSTANCE, MAX_PATH};
-use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleFileNameW};
+use windows::Win32::System::LibraryLoader::{
+    FreeLibraryAndExitThread, GetModuleFileNameW,
+};
 use windows::Win32::System::SystemServices::*;
 use windows::Win32::UI::Shell::{PathFindFileNameW, StrCmpW};
 
-lazy_static! { static ref EXITING: Mutex<bool> = Mutex::new(false); }
+lazy_static! {
+    static ref EXITING: Mutex<bool> = Mutex::new(false);
+}
 
 fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {
-        env::set_var("RUST_LOG", "trace");
-        unsafe { windows::Win32::System::Console::AllocConsole(); }
-        pretty_env_logger::init_timed();
+        std::env::set_var("RUST_LOG", "trace");
+        //unsafe { windows::Win32::System::Console::AllocConsole(); }
+        //pretty_env_logger::init_timed();
+        egui_logger::init().unwrap();
         info!("geometey dahs found!!1");
 
         gui::GUI.lock().init();
         hooks::load().unwrap();
 
-        while *EXITING.lock() == false { }
+        while *EXITING.lock() == false {}
 
         hooks::unload().unwrap();
     } else {
@@ -41,7 +45,8 @@ fn is_gd() -> bool {
     unsafe { GetModuleFileNameW(None, &mut file_path_utf16) };
 
     let file_path = PCWSTR::from_raw(file_path_utf16.as_ptr());
-    let file_name = unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
+    let file_name =
+        unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
 
     unsafe { StrCmpW(w!("GeometryDash.exe"), file_name) == 0 }
 }
@@ -52,7 +57,11 @@ fn unload(hinst_dll: HINSTANCE) {
 }
 
 #[no_mangle]
-extern "system" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) -> bool {
+extern "system" fn DllMain(
+    hinst_dll: HINSTANCE,
+    reason: u32,
+    _: *mut c_void,
+) -> bool {
     match reason {
         DLL_PROCESS_ATTACH => {
             let orig_hook = std::panic::take_hook();
@@ -67,9 +76,7 @@ extern "system" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) ->
 
             true
         }
-        DLL_PROCESS_DETACH => {
-            true
-        }
+        DLL_PROCESS_DETACH => true,
         _ => false,
     }
 }

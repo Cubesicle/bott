@@ -1,17 +1,20 @@
-use crate::gui;
-
-use anyhow::{anyhow, Context, Result};
-use log::info;
-use retour::static_detour;
 use std::ffi::CString;
 use std::mem::transmute;
 use std::os::raw::c_void;
 use std::sync::Once;
-use windows::Win32::Foundation::{HWND, WPARAM, LPARAM, LRESULT};
+
+use anyhow::{anyhow, Context, Result};
+use log::info;
+use retour::static_detour;
 use windows::core::{PCSTR, PCWSTR};
-use windows::Win32::Graphics::Gdi::{HDC, WindowFromDC};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Graphics::Gdi::{WindowFromDC, HDC};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
-use windows::Win32::UI::WindowsAndMessaging::{CallWindowProcW, DefWindowProcW, SetWindowLongPtrA, GWLP_WNDPROC, WNDPROC};
+use windows::Win32::UI::WindowsAndMessaging::{
+    CallWindowProcW, DefWindowProcW, SetWindowLongPtrW, GWLP_WNDPROC, WNDPROC,
+};
+
+use crate::gui;
 
 static mut OLD_WND_PROC: Option<WNDPROC> = None;
 
@@ -19,33 +22,36 @@ static_detour! {
     static WGLSwapBuffersHook: extern "system" fn(HDC);
 }
 
-type FnWGLSwapBuffers = extern "system" fn(HDC);
-
 pub fn load() -> Result<()> {
     let address = get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?;
-    let target: FnWGLSwapBuffers = unsafe { std::mem::transmute(address) };
-    unsafe { WGLSwapBuffersHook
-        .initialize(target, wgl_swap_buffers_detour)?
-        .enable() }?;
+    let target = unsafe { std::mem::transmute(address) };
+    unsafe {
+        WGLSwapBuffersHook
+            .initialize(target, wgl_swap_buffers_detour)?
+            .enable()?
+    };
 
     Ok(())
 }
 
-pub fn unload() -> Result<()>{
+pub fn unload() -> Result<()> {
     unsafe { WGLSwapBuffersHook.disable() }?;
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
-    let wnd_proc = if let Some(wnd_proc) = unsafe { OLD_WND_PROC.unwrap_or_default() } {
-        Ok(wnd_proc)
-    } else {
-        Err(anyhow!("Failed to get original window procedure."))
+    let wnd_proc =
+        if let Some(wnd_proc) = unsafe { OLD_WND_PROC.unwrap_or_default() } {
+            Ok(wnd_proc)
+        } else {
+            Err(anyhow!("Failed to get original window procedure."))
+        };
+    unsafe {
+        SetWindowLongPtrW(
+            gui::APP.get_window(),
+            GWLP_WNDPROC,
+            wnd_proc? as usize as _,
+        )
     };
-    unsafe { SetWindowLongPtrA(
-        gui::APP.get_window(),
-        GWLP_WNDPROC,
-        wnd_proc? as usize as _,
-    ) };
 
     info!("Hooks unloaded.");
     Ok(())
@@ -58,21 +64,29 @@ fn wgl_swap_buffers_detour(hdc: HDC) {
     INIT.call_once(|| {
         info!("wglSwapBuffers successfully hooked.");
 
-        unsafe { gui::APP.init_default(hdc, window, |ctx, t| gui::GUI.lock().show(ctx, t)) };
+        unsafe {
+            gui::APP.init_default(hdc, window, |ctx, t| {
+                gui::GUI.lock().show(ctx, t)
+            })
+        };
 
-        unsafe { OLD_WND_PROC = Some(transmute(SetWindowLongPtrA(
-            window,
-            GWLP_WNDPROC,
-            call_wnd_proc_detour as usize as _,
-        ))) };
+        unsafe {
+            OLD_WND_PROC = Some(transmute(SetWindowLongPtrW(
+                window,
+                GWLP_WNDPROC,
+                call_wnd_proc_detour as usize as _,
+            )))
+        };
     });
 
     if !unsafe { gui::APP.get_window().eq(&window) } {
-        unsafe { SetWindowLongPtrA(
-            window,
-            GWLP_WNDPROC,
-            call_wnd_proc_detour as usize as _,
-        ) };
+        unsafe {
+            SetWindowLongPtrW(
+                window,
+                GWLP_WNDPROC,
+                call_wnd_proc_detour as usize as _,
+            )
+        };
     }
 
     unsafe { gui::APP.render(hdc) };
@@ -100,19 +114,28 @@ extern "system" fn call_wnd_proc_detour(
     unsafe { CallWindowProcW(OLD_WND_PROC.unwrap(), hwnd, msg, wparam, lparam) }
 }
 
-pub fn get_module_symbol_address(module: &str, symbol: &str) -> Result<*const c_void> {
-    let module_utf16 = module
-        .encode_utf16()
-        .chain(std::iter::once(0))
-        .collect::<Vec<u16>>();
-    let symbol_ansi = CString::new(symbol).unwrap_or_default();
-    let handle = unsafe { GetModuleHandleW(PCWSTR::from_raw(module_utf16.as_ptr())) }.context(format!("Could not find {}", module))?;
-    if let Some(func) = unsafe { GetProcAddress(
-        handle,
-        PCSTR::from_raw(symbol_ansi.to_bytes_with_nul().as_ptr()),
-    ) } {
+pub fn get_module_symbol_address(
+    module: &str,
+    symbol: &str,
+) -> Result<*const c_void> {
+    let module_utf16 = PCWSTR(
+        module
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect::<Vec<u16>>()
+            .as_ptr(),
+    );
+    let symbol_cstring = CString::new(symbol).unwrap_or_default();
+    let symbol_ansi = PCSTR(symbol_cstring.to_bytes_with_nul().as_ptr());
+    let handle = unsafe { GetModuleHandleW(module_utf16) }
+        .context(format!("Could not find {}", module))?;
+    if let Some(func) = unsafe { GetProcAddress(handle, symbol_ansi) } {
         Ok(func as *const c_void)
     } else {
-        Err(anyhow!("Could not get memory address of {} in {}", symbol, module))
+        Err(anyhow!(
+            "Could not get memory address of {} in {}",
+            symbol,
+            module
+        ))
     }
 }

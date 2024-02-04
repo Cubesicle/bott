@@ -3,7 +3,9 @@ use egui::{Response, Ui, Widget};
 pub struct Replay {}
 
 impl Replay {
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 impl Widget for Replay {
