@@ -1,10 +1,13 @@
 use egui::{Response, Ui, Widget};
+use egui_logger::logger_ui;
 use windows::Win32::System::Console::{AllocConsole, FreeConsole};
 
-pub struct Debug { }
+pub struct Debug {}
 
 impl Debug {
-    pub fn new() -> Self { Self {} }
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
 impl Widget for Debug {
@@ -12,8 +15,13 @@ impl Widget for Debug {
         ui.heading("Debug");
         let button = ui.button("Toggle console");
         if button.clicked() {
-            unsafe { if AllocConsole().is_err() { let _ = FreeConsole(); } }
+            unsafe {
+                if AllocConsole().is_err() {
+                    let _ = FreeConsole();
+                }
+            }
         }
+        logger_ui(ui);
         button
     }
 }
