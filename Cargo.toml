@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 anyhow = "^1.0.0"
 egui = "^0.25.0"
 egui-opengl-internal = { git = "https://github.com/Cubesicle/egui-opengl-internal" }
+egui_logger = "^0.4.0"
 lazy_static = "^1.4.0"
 log = "^0.4.0"
 pretty_env_logger = "^0.5.0"
