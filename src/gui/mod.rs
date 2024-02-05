@@ -45,7 +45,7 @@ impl RBotGUI {
     }
 
     pub fn name(&self) -> &'static str {
-        "rBot"
+        "Bott"
     }
 
     pub fn show(&mut self, ctx: &egui::Context, _: &mut i32) {
