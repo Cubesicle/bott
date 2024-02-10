@@ -7,17 +7,19 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "^1.0.0"
-egui = "^0.25.0"
+anyhow = "1"
+egui = "0.26"
 egui-opengl-internal = { git = "https://github.com/Cubesicle/egui-opengl-internal" }
-egui_logger = "^0.4.0"
-lazy_static = "^1.4.0"
-log = "^0.4.0"
-pretty_env_logger = "^0.5.0"
-retour = { version = "^0.3.0", features = ["static-detour"] }
+egui_logger = "0.4"
+indexmap = "2.2"
+lazy_static = "1.4"
+log = "0.4"
+multimap = "0.10.0"
+pretty_env_logger = "0.5"
+retour = { version = "0.3", features = ["static-detour", "thiscall-abi"] }
 
 [dependencies.windows]
-version = "^0.52.0"
+version = "0.52"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
