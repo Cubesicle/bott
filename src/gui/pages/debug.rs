@@ -1,6 +1,10 @@
+use std::sync::atomic::Ordering;
+
 use egui::{Response, Ui, Widget};
-use egui_logger::logger_ui;
 use windows::Win32::System::Console::{AllocConsole, FreeConsole};
+
+use crate::bot;
+use crate::gd::{self, get_current_frame};
 
 pub struct Debug {}
 
@@ -12,7 +16,7 @@ impl Debug {
 
 impl Widget for Debug {
     fn ui(self, ui: &mut Ui) -> Response {
-        ui.heading("Debug");
+        let heading = ui.heading("Debug");
         let button = ui.button("Toggle console");
         if button.clicked() {
             unsafe {
@@ -21,7 +25,29 @@ impl Widget for Debug {
                 }
             }
         }
-        logger_ui(ui);
-        button
+        ui.label(format!(
+            "Current frame: {}",
+            if unsafe { gd::get_play_layer_addr() }.is_err() {
+                0
+            } else {
+                unsafe { get_current_frame().unwrap() }
+            }
+        ));
+        if ui
+            .button(format!(
+                "{}",
+                if bot::PAUSED.load(Ordering::Relaxed) {
+                    "Play"
+                } else {
+                    "Pause"
+                }
+            ))
+            .clicked()
+        {
+            bot::PAUSED
+                .store(!bot::PAUSED.load(Ordering::Relaxed), Ordering::Relaxed);
+        }
+        //logger_ui(ui);
+        heading
     }
 }
