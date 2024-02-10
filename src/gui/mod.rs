@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::sync::atomic::Ordering;
+use std::sync::RwLock;
 
-use egui::mutex::Mutex;
 use egui_opengl_internal::OpenGLApp;
 use lazy_static::lazy_static;
 use windows::Win32::Foundation::{LPARAM, WPARAM};
@@ -75,7 +76,7 @@ impl RBotGUI {
                                 ui.close_menu();
                             }
                             if ui.button("Yes").clicked() {
-                                *crate::EXITING.lock() = true;
+                                crate::EXITING.store(true, Ordering::Relaxed);
                             }
                         });
                     });
@@ -152,5 +153,5 @@ impl RBotGUI {
 
 pub static mut APP: OpenGLApp<i32> = OpenGLApp::new();
 lazy_static! {
-    pub static ref GUI: Mutex<RBotGUI> = Mutex::new(RBotGUI::new());
+    pub static ref GUI: RwLock<RBotGUI> = RwLock::new(RBotGUI::new());
 }
