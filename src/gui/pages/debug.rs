@@ -1,22 +1,19 @@
 use std::sync::atomic::Ordering;
 
-use egui::{Response, Ui, Widget};
+use egui::Ui;
 use windows::Win32::System::Console::{AllocConsole, FreeConsole};
 
 use crate::bot;
 use crate::gd::{self, get_current_frame};
 
+#[derive(Default)]
 pub struct Debug {}
 
-impl Debug {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+impl super::Page for Debug {
+    fn ui(&mut self, ui: &mut Ui) {
+        ui.heading("Debug");
+        ui.add_space(ui.spacing().item_spacing.y);
 
-impl Widget for Debug {
-    fn ui(self, ui: &mut Ui) -> Response {
-        let heading = ui.heading("Debug");
         let button = ui.button("Toggle console");
         if button.clicked() {
             unsafe {
@@ -25,6 +22,8 @@ impl Widget for Debug {
                 }
             }
         }
+        ui.add_space(ui.spacing().item_spacing.y);
+
         ui.label(format!(
             "Current frame: {}",
             if unsafe { gd::get_play_layer_addr() }.is_err() {
@@ -33,6 +32,8 @@ impl Widget for Debug {
                 unsafe { get_current_frame().unwrap() }
             }
         ));
+        ui.add_space(ui.spacing().item_spacing.y);
+
         if ui
             .button(format!(
                 "{}",
@@ -44,10 +45,8 @@ impl Widget for Debug {
             ))
             .clicked()
         {
-            bot::PAUSED
-                .store(!bot::PAUSED.load(Ordering::Relaxed), Ordering::Relaxed);
+            bot::PAUSED.store(!bot::PAUSED.load(Ordering::Relaxed), Ordering::Relaxed);
         }
         //logger_ui(ui);
-        heading
     }
 }

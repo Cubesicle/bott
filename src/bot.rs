@@ -1,15 +1,20 @@
 use std::collections::{HashSet, LinkedList};
+use std::fs::{self, File};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::RwLock;
 
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use indexmap::{IndexMap, IndexSet};
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
+use crate::gd::PlayerButton;
 use crate::{gd, hooks};
 
 lazy_static! {
     pub static ref PAUSED: AtomicBool = AtomicBool::new(false);
+    pub static ref REPLAYS_DIR: PathBuf = crate::EXE_PATH.parent().unwrap().join("bott");
     static ref STATE: AtomicU8 = AtomicU8::new(0);
     static ref BUTTON_EVENTS: RwLock<IndexMap<u32, RwLock<IndexSet<ButtonEvent>>>> =
         RwLock::new(IndexMap::new());
@@ -22,12 +27,43 @@ pub enum State {
     Replaying = 2,
 }
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Eq, Hash, PartialEq)]
 pub struct ButtonEvent {
-    pub is_held_down: bool,
-    pub button: gd::PlayerButton,
-    pub is_player_1: bool,
+    button: PlayerButton,
+    is_held_down: bool,
+    is_player_1: bool,
 }
+
+impl ButtonEvent {
+    pub fn new(button: PlayerButton, is_held_down: bool, is_player_1: bool) -> Self {
+        Self {
+            button: button,
+            is_held_down: is_held_down,
+            is_player_1: is_player_1,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+struct ButtonEventWithFrame {
+    frame: u32,
+    button: PlayerButton,
+    is_held_down: bool,
+    is_player_1: bool,
+}
+
+impl ButtonEventWithFrame {
+    pub fn new(frame: u32, button: PlayerButton, is_held_down: bool, is_player_1: bool) -> Self {
+        Self {
+            frame: frame,
+            button: button,
+            is_held_down: is_held_down,
+            is_player_1: is_player_1,
+        }
+    }
+}
+
+type UnmappedButtonEvents = LinkedList<ButtonEventWithFrame>;
 
 pub fn get_state() -> State {
     match STATE.load(Ordering::Relaxed) {
@@ -67,75 +103,18 @@ pub fn trim_button_events_after_frame(frame: u32) {
 }
 
 pub fn release_all_buttons_at_frame(frame: u32) {
-    add_button_event(
-        frame,
-        ButtonEvent {
-            is_held_down: false,
-            button: gd::PlayerButton::Jump,
-            is_player_1: true,
-        },
-    );
-    add_button_event(
-        frame,
-        ButtonEvent {
-            is_held_down: false,
-            button: gd::PlayerButton::Jump,
-            is_player_1: false,
-        },
-    );
-    add_button_event(
-        frame,
-        ButtonEvent {
-            is_held_down: false,
-            button: gd::PlayerButton::Left,
-            is_player_1: true,
-        },
-    );
-    add_button_event(
-        frame,
-        ButtonEvent {
-            is_held_down: false,
-            button: gd::PlayerButton::Left,
-            is_player_1: false,
-        },
-    );
-    add_button_event(
-        frame,
-        ButtonEvent {
-            is_held_down: false,
-            button: gd::PlayerButton::Right,
-            is_player_1: true,
-        },
-    );
-    add_button_event(
-        frame,
-        ButtonEvent {
-            is_held_down: false,
-            button: gd::PlayerButton::Right,
-            is_player_1: false,
-        },
-    );
+    add_button_event(frame, ButtonEvent::new(PlayerButton::Jump, false, true));
+    add_button_event(frame, ButtonEvent::new(PlayerButton::Jump, false, false));
+    add_button_event(frame, ButtonEvent::new(PlayerButton::Left, false, true));
+    add_button_event(frame, ButtonEvent::new(PlayerButton::Left, false, false));
+    add_button_event(frame, ButtonEvent::new(PlayerButton::Right, false, true));
+    add_button_event(frame, ButtonEvent::new(PlayerButton::Right, false, false));
 }
 
 pub fn optimize_button_events() {
-    let mut raw_button_events: LinkedList<(u32, ButtonEvent)> =
-        LinkedList::new();
-    BUTTON_EVENTS.read().unwrap().iter().for_each(|(k, v)| {
-        v.read().unwrap().iter().for_each(|v| {
-            raw_button_events.push_back((*k, *v));
-        })
-    });
-    BUTTON_EVENTS.write().unwrap().clear();
-    let mut pressed_buttons: HashSet<(gd::PlayerButton, bool)> = HashSet::new();
-    raw_button_events.iter().for_each(|(k, v)| {
-        if (v.is_held_down == true
-            && pressed_buttons.insert((v.button, v.is_player_1)) == true)
-            || (v.is_held_down == false
-                && pressed_buttons.remove(&(v.button, v.is_player_1)) == true)
-        {
-            add_button_event(*k, *v);
-        }
-    });
+    let mut button_events = UnmappedButtonEvents::new();
+    dump_unmapped_optimized(&mut button_events);
+    load_unmapped(&button_events);
 }
 
 pub fn handle_frame(frame: u32) -> Result<()> {
@@ -150,4 +129,64 @@ pub fn handle_frame(frame: u32) -> Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn save_replay(file_name: &str) -> Result<()> {
+    ensure!(
+        !file_name.to_string().trim().is_empty(),
+        "File name is empty."
+    );
+    let replay_file_path = REPLAYS_DIR.join(file_name.to_string() + ".csv");
+    let _ = fs::create_dir(REPLAYS_DIR.as_path());
+    let mut wtr = csv::Writer::from_writer(File::create_new(replay_file_path)?);
+    let mut unmapped_button_events = UnmappedButtonEvents::default();
+    dump_unmapped_optimized(&mut unmapped_button_events);
+    for b in unmapped_button_events {
+        wtr.serialize(b)?;
+    }
+    Ok(())
+}
+
+pub fn load_replay(file_name: &str) -> Result<()> {
+    ensure!(
+        !file_name.to_string().trim().is_empty(),
+        "File name is empty."
+    );
+    let replay_file_path = REPLAYS_DIR.join(file_name.to_string());
+    let mut rdr = csv::Reader::from_reader(File::open(replay_file_path)?);
+    let mut unmapped_button_events = UnmappedButtonEvents::default();
+    for b in rdr.deserialize() {
+        unmapped_button_events.push_back(b?);
+    }
+    load_unmapped(&unmapped_button_events);
+    Ok(())
+}
+
+fn dump_unmapped_optimized(unmapped_button_events: &mut UnmappedButtonEvents) {
+    let mut pressed_buttons = HashSet::<(PlayerButton, bool)>::new();
+    for (k, v) in BUTTON_EVENTS.read().unwrap().iter() {
+        for v in v.read().unwrap().iter() {
+            if (v.is_held_down == true && pressed_buttons.insert((v.button, v.is_player_1)) == true)
+                || (v.is_held_down == false
+                    && pressed_buttons.remove(&(v.button, v.is_player_1)) == true)
+            {
+                unmapped_button_events.push_back(ButtonEventWithFrame::new(
+                    *k,
+                    v.button,
+                    v.is_held_down,
+                    v.is_player_1,
+                ));
+            }
+        }
+    }
+}
+
+fn load_unmapped(unmapped_button_events: &UnmappedButtonEvents) {
+    BUTTON_EVENTS.write().unwrap().clear();
+    for b in unmapped_button_events {
+        add_button_event(
+            b.frame,
+            ButtonEvent::new(b.button, b.is_held_down, b.is_player_1),
+        );
+    }
 }
