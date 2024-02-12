@@ -8,15 +8,16 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1"
+csv = "1.3"
 egui = "0.26"
 egui-opengl-internal = { git = "https://github.com/Cubesicle/egui-opengl-internal" }
 egui_logger = "0.4"
 indexmap = "2.2"
 lazy_static = "1.4"
 log = "0.4"
-multimap = "0.10.0"
 pretty_env_logger = "0.5"
 retour = { version = "0.3", features = ["static-detour", "thiscall-abi"] }
+serde = { version = "1", features = ["derive"] }
 
 [dependencies.windows]
 version = "0.52"
