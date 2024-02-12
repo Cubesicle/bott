@@ -5,33 +5,37 @@ pub mod gui;
 pub mod hooks;
 
 use std::ffi::c_void;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use lazy_static::lazy_static;
 use log::info;
-use windows::core::{w, PCWSTR};
+use windows::core::{w, HSTRING};
 use windows::Win32::Foundation::{HINSTANCE, MAX_PATH};
-use windows::Win32::System::LibraryLoader::{
-    FreeLibraryAndExitThread, GetModuleFileNameW,
-};
+use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleFileNameW};
 use windows::Win32::System::SystemServices::*;
-use windows::Win32::UI::Shell::{PathFindFileNameW, StrCmpW};
+use windows::Win32::UI::Shell::StrCmpW;
 
 lazy_static! {
+    static ref EXE_PATH: PathBuf = {
+        let mut buf = [0; MAX_PATH as usize];
+        unsafe { GetModuleFileNameW(None, &mut buf) };
+        PathBuf::from(String::from_utf16(&buf).unwrap().trim().to_string())
+    };
     static ref EXITING: AtomicBool = AtomicBool::new(false);
 }
 
 fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {
         std::env::set_var("RUST_LOG", "trace");
-        unsafe {
-            windows::Win32::System::Console::AllocConsole();
-        }
+        //unsafe {
+        //    let _ = windows::Win32::System::Console::AllocConsole();
+        //}
         pretty_env_logger::init_timed();
         //egui_logger::init().unwrap();
         info!("geometey dahs found!!1");
 
-        gui::GUI.write().unwrap().init();
+        unsafe { gui::GUI.init() };
         hooks::load().unwrap();
 
         while EXITING.load(Ordering::Relaxed) == false {}
@@ -45,14 +49,10 @@ fn main_thread(hinst_dll: HINSTANCE) {
 }
 
 fn is_gd() -> bool {
-    let mut file_path_utf16 = [0; MAX_PATH as usize];
-    unsafe { GetModuleFileNameW(None, &mut file_path_utf16) };
-
-    let file_path = PCWSTR::from_raw(file_path_utf16.as_ptr());
-    let file_name =
-        unsafe { PCWSTR::from_raw(PathFindFileNameW(file_path).as_ptr()) };
-
-    unsafe { StrCmpW(w!("GeometryDash.exe"), file_name) == 0 }
+    EXE_PATH
+        .file_name()
+        .map(|s| unsafe { StrCmpW(&HSTRING::from(s), w!("GeometryDash.exe")) } == 0)
+        .unwrap_or(false)
 }
 
 fn unload(hinst_dll: HINSTANCE) {
@@ -61,11 +61,7 @@ fn unload(hinst_dll: HINSTANCE) {
 }
 
 #[no_mangle]
-extern "stdcall" fn DllMain(
-    hinst_dll: HINSTANCE,
-    reason: u32,
-    _: *mut c_void,
-) -> bool {
+extern "stdcall" fn DllMain(hinst_dll: HINSTANCE, reason: u32, _: *mut c_void) -> bool {
     match reason {
         DLL_PROCESS_ATTACH => {
             let orig_hook = std::panic::take_hook();

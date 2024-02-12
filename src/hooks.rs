@@ -3,11 +3,11 @@ use std::mem::transmute;
 use std::sync::atomic::Ordering;
 use std::sync::{Once, OnceLock};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use lazy_static::lazy_static;
 use log::info;
 use retour::static_detour;
-use windows::core::{PCSTR, PCWSTR};
+use windows::core::{HSTRING, PCSTR};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::Graphics::Gdi::{WindowFromDC, HDC};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
@@ -31,10 +31,7 @@ static_detour! {
 
 pub fn load() -> Result<()> {
     unsafe {
-        let target = transmute(get_module_symbol_address(
-            "opengl32.dll",
-            "wglSwapBuffers",
-        )?);
+        let target = transmute(get_module_symbol_address("opengl32.dll", "wglSwapBuffers")?);
         WGLSwapBuffersHook
             .initialize(target, wgl_swap_buffers_detour)?
             .enable()?;
@@ -60,27 +57,18 @@ pub fn load() -> Result<()> {
                         && gd::get_play_layer_addr().is_ok()
                     {
                         log::info!(
-                        "Holding: {}; Button: {:?}; Player 1? {}; Frame: {};",
-                        is_held_down,
-                        button,
-                        is_player_1,
-                        gd::get_current_frame().unwrap_or_default()
-                    );
+                            "Button: {:?}; Holding: {}; Player 1? {}; Frame: {};",
+                            button,
+                            is_held_down,
+                            is_player_1,
+                            gd::get_current_frame().unwrap_or_default()
+                        );
                         bot::add_button_event(
                             gd::get_current_frame().unwrap(),
-                            bot::ButtonEvent {
-                                is_held_down: is_held_down,
-                                button: button,
-                                is_player_1: is_player_1,
-                            },
+                            bot::ButtonEvent::new(button, is_held_down, is_player_1),
                         )
                     }
-                    HandleButtonHook.call(
-                        addr,
-                        is_held_down,
-                        button,
-                        is_player_1,
-                    );
+                    HandleButtonHook.call(addr, is_held_down, button, is_player_1);
                 },
             )?
             .enable()?;
@@ -88,8 +76,7 @@ pub fn load() -> Result<()> {
         PostUpdateHook
             .initialize(transmute(*gd::POST_UPDATE_FN_ADDR), |addr, dt| {
                 if bot::get_state() == bot::State::Replaying {
-                    bot::handle_frame(gd::get_current_frame().unwrap())
-                        .unwrap();
+                    bot::handle_frame(gd::get_current_frame().unwrap()).unwrap();
                 }
                 PostUpdateHook.call(addr, dt);
             })?
@@ -98,9 +85,7 @@ pub fn load() -> Result<()> {
         PauseGameHook
             .initialize(transmute(*gd::PAUSE_GAME_FN_ADDR), |addr, p0| {
                 if bot::get_state() == bot::State::Recording {
-                    bot::release_all_buttons_at_frame(
-                        gd::get_current_frame().unwrap(),
-                    );
+                    bot::release_all_buttons_at_frame(gd::get_current_frame().unwrap());
                 }
                 PauseGameHook.call(addr, p0);
             })?
@@ -110,12 +95,8 @@ pub fn load() -> Result<()> {
             .initialize(transmute(*gd::RESET_LEVEL_FN_ADDR), |addr| {
                 ResetLevelHook.call(addr);
                 if bot::get_state() == bot::State::Recording {
-                    bot::trim_button_events_after_frame(
-                        gd::get_current_frame().unwrap(),
-                    );
-                    bot::release_all_buttons_at_frame(
-                        gd::get_current_frame().unwrap(),
-                    );
+                    bot::trim_button_events_after_frame(gd::get_current_frame().unwrap());
+                    bot::release_all_buttons_at_frame(gd::get_current_frame().unwrap());
                 }
             })?
             .enable()?;
@@ -126,28 +107,21 @@ pub fn load() -> Result<()> {
 
 pub fn unload() -> Result<()> {
     unsafe {
-        WGLSwapBuffersHook.disable()?;
-        SchedulerUpdateHook.disable()?;
-        HandleButtonHook.disable()?;
-        PostUpdateHook.disable()?;
-        PauseGameHook.disable()?;
-        ResetLevelHook.disable()?;
+        let _ = WGLSwapBuffersHook.disable();
+        let _ = SchedulerUpdateHook.disable();
+        let _ = HandleButtonHook.disable();
+        let _ = PostUpdateHook.disable();
+        let _ = PauseGameHook.disable();
+        let _ = ResetLevelHook.disable();
     }
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
-    let wnd_proc = if let Some(Some(wnd_proc)) = OLD_WND_PROC.get() {
-        Ok(*wnd_proc)
-    } else {
-        Err(anyhow!("Failed to get original window procedure."))
-    };
-    unsafe {
-        SetWindowLongPtrW(
-            gui::APP.get_window(),
-            GWLP_WNDPROC,
-            wnd_proc? as usize as _,
-        )
-    };
+    let wnd_proc = OLD_WND_PROC
+        .get()
+        .unwrap_or(&None)
+        .context("Failed to get original window procedure.");
+    unsafe { SetWindowLongPtrW(gui::APP.get_window(), GWLP_WNDPROC, wnd_proc? as usize as _) };
 
     info!("Hooks unloaded.");
     Ok(())
@@ -160,11 +134,7 @@ fn wgl_swap_buffers_detour(hdc: HDC) {
     INIT.call_once(|| {
         info!("wglSwapBuffers successfully hooked.");
 
-        unsafe {
-            gui::APP.init_default(hdc, window, |ctx, t| {
-                gui::GUI.write().unwrap().show(ctx, t)
-            })
-        };
+        unsafe { gui::APP.init_default(hdc, window, |ctx, t| gui::GUI.show(ctx, t)) };
 
         OLD_WND_PROC
             .set(unsafe {
@@ -178,13 +148,7 @@ fn wgl_swap_buffers_detour(hdc: HDC) {
     });
 
     if !unsafe { gui::APP.get_window().eq(&window) } {
-        unsafe {
-            SetWindowLongPtrW(
-                window,
-                GWLP_WNDPROC,
-                call_wnd_proc_detour as usize as _,
-            )
-        };
+        unsafe { SetWindowLongPtrW(window, GWLP_WNDPROC, call_wnd_proc_detour as usize as _) };
     }
 
     unsafe { gui::APP.render(hdc) };
@@ -202,40 +166,25 @@ extern "stdcall" fn call_wnd_proc_detour(
         info!("CallWindowProcW successfully hooked.");
     });
 
-    gui::GUI
-        .write()
-        .unwrap()
-        .handle_keydown(msg, wparam, lparam);
+    unsafe { gui::GUI.handle_keydown(msg, wparam, lparam) };
 
     let egui_wants_input = unsafe { gui::APP.wnd_proc(msg, wparam, lparam) };
     if egui_wants_input {
         return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
     }
 
-    unsafe {
-        CallWindowProcW(*OLD_WND_PROC.get().unwrap(), hwnd, msg, wparam, lparam)
-    }
+    unsafe { CallWindowProcW(*OLD_WND_PROC.get().unwrap(), hwnd, msg, wparam, lparam) }
 }
 
 pub fn get_module_symbol_address(module: &str, symbol: &str) -> Result<usize> {
-    let module_utf16 = PCWSTR(
-        module
-            .encode_utf16()
-            .chain(std::iter::once(0))
-            .collect::<Vec<u16>>()
-            .as_ptr(),
-    );
     let symbol_cstring = CString::new(symbol).unwrap_or_default();
     let symbol_ansi = PCSTR(symbol_cstring.to_bytes_with_nul().as_ptr());
-    let handle = unsafe { GetModuleHandleW(module_utf16) }
-        .context(format!("Could not find {}", module))?;
-    if let Some(func) = unsafe { GetProcAddress(handle, symbol_ansi) } {
-        Ok(func as usize)
-    } else {
-        Err(anyhow!(
-            "Could not get memory address of {} in {}",
-            symbol,
-            module
+    let handle = unsafe { GetModuleHandleW(&HSTRING::from(module)) }
+        .context(format!("Could not find {}.", module))?;
+    unsafe { GetProcAddress(handle, symbol_ansi) }
+        .map(|f| f as usize)
+        .context(format!(
+            "Could not get memory address of {} in {}.",
+            symbol, module
         ))
-    }
 }
