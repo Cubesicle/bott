@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::RwLock;
 
 use anyhow::{ensure, Result};
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
@@ -14,9 +14,10 @@ use crate::{gd, hooks};
 
 lazy_static! {
     pub static ref PAUSED: AtomicBool = AtomicBool::new(false);
+    pub static ref ALLOW_FRAME_SKIPPING: AtomicBool = AtomicBool::new(false);
     pub static ref REPLAYS_DIR: PathBuf = crate::EXE_PATH.parent().unwrap().join("bott");
     static ref STATE: AtomicU8 = AtomicU8::new(0);
-    static ref BUTTON_EVENTS: RwLock<IndexMap<u32, RwLock<IndexSet<ButtonEvent>>>> =
+    static ref BUTTON_EVENTS: RwLock<IndexMap<u32, RwLock<LinkedList<ButtonEvent>>>> =
         RwLock::new(IndexMap::new());
 }
 
@@ -86,7 +87,7 @@ pub fn add_button_event(frame: u32, button_event: ButtonEvent) {
         BUTTON_EVENTS
             .write()
             .unwrap()
-            .insert(frame, RwLock::new(IndexSet::new()));
+            .insert(frame, RwLock::new(LinkedList::new()));
     }
     BUTTON_EVENTS
         .read()
@@ -95,11 +96,20 @@ pub fn add_button_event(frame: u32, button_event: ButtonEvent) {
         .unwrap()
         .write()
         .unwrap()
-        .insert(button_event);
+        .push_back(button_event);
 }
 
 pub fn trim_button_events_after_frame(frame: u32) {
-    BUTTON_EVENTS.write().unwrap().retain(|k, _| *k < frame);
+    //BUTTON_EVENTS.write().unwrap().retain(|k, _| *k < frame);
+    while BUTTON_EVENTS
+        .read()
+        .unwrap()
+        .last()
+        .map(|(k, _)| *k >= frame)
+        .unwrap_or(false)
+    {
+        BUTTON_EVENTS.write().unwrap().pop();
+    }
 }
 
 pub fn release_all_buttons_at_frame(frame: u32) {
@@ -120,6 +130,13 @@ pub fn optimize_button_events() {
 pub fn handle_frame(frame: u32) -> Result<()> {
     if let Some(button_events) = BUTTON_EVENTS.read().unwrap().get(&frame) {
         for button_event in button_events.read().unwrap().iter() {
+            log::debug!(
+                "Bot: {} {:?} {} {}",
+                frame,
+                button_event.button,
+                button_event.is_held_down,
+                button_event.is_player_1,
+            );
             hooks::HandleButtonHook.call(
                 unsafe { gd::get_play_layer_addr()? },
                 button_event.is_held_down,
@@ -182,7 +199,7 @@ fn dump_unmapped_optimized(unmapped_button_events: &mut UnmappedButtonEvents) {
 }
 
 fn load_unmapped(unmapped_button_events: &UnmappedButtonEvents) {
-    BUTTON_EVENTS.write().unwrap().clear();
+    *BUTTON_EVENTS.write().unwrap() = IndexMap::new();
     for b in unmapped_button_events {
         add_button_event(
             b.frame,

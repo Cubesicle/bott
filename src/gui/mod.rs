@@ -10,9 +10,9 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{KF_EXTENDED, WM_KEYDOWN};
 
-use self::pages::Page;
+use self::panels::Panel;
 
-mod pages;
+mod panels;
 
 #[derive(Eq, Hash, PartialEq)]
 enum Keybind {
@@ -20,45 +20,43 @@ enum Keybind {
 }
 
 #[derive(Eq, PartialEq)]
-enum SelectedPage {
-    Record,
-    Replay,
+enum Page {
+    //Record,
+    //Replay,
+    Main,
     Debug,
 }
 
 pub struct RBotGUI {
     open: bool,
-    record_page: Option<pages::Record>,
-    replay_page: Option<pages::Replay>,
-    debug_page: Option<pages::Debug>,
-    selected_page: SelectedPage,
+    settings_panel: Option<panels::Settings>,
+    record_panel: Option<panels::Save>,
+    replay_panel: Option<panels::Load>,
+    debug_panel: Option<panels::Debug>,
+    selected_page: Page,
     keybinds: Option<HashMap<Keybind, VIRTUAL_KEY>>,
-    popup_open: bool,
-    popup_anchored: bool,
-    popup_text: Option<String>,
 }
 
 impl RBotGUI {
     const fn new() -> Self {
         Self {
             open: true,
-            record_page: None,
-            replay_page: None,
-            debug_page: None,
-            selected_page: SelectedPage::Record,
+            settings_panel: None,
+            record_panel: None,
+            replay_panel: None,
+            debug_panel: None,
+            selected_page: Page::Main,
             keybinds: None,
-            popup_open: false,
-            popup_anchored: true,
-            popup_text: None,
         }
     }
 }
 
 impl RBotGUI {
     pub fn init(&mut self) {
-        self.record_page = Some(pages::Record::default());
-        self.replay_page = Some(pages::Replay::default());
-        self.debug_page = Some(pages::Debug::default());
+        self.settings_panel = Some(panels::Settings::default());
+        self.record_panel = Some(panels::Save::default());
+        self.replay_panel = Some(panels::Load::default());
+        self.debug_panel = Some(panels::Debug::default());
         self.keybinds = Some(HashMap::from([(Keybind::ToggleGUI, VK_RSHIFT)]));
     }
 
@@ -68,12 +66,14 @@ impl RBotGUI {
 
     pub fn show(&mut self, ctx: &egui::Context, _: &mut i32) {
         egui::Window::new(self.name())
+            .default_size(egui::vec2(0.0, 0.0))
             .open(&mut self.open)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.selected_page, SelectedPage::Record, "Record");
-                    ui.selectable_value(&mut self.selected_page, SelectedPage::Replay, "Replay");
-                    ui.selectable_value(&mut self.selected_page, SelectedPage::Debug, "Debug");
+                    //ui.selectable_value(&mut self.selected_page, SelectedPage::Record, "Record");
+                    //ui.selectable_value(&mut self.selected_page, SelectedPage::Replay, "Replay");
+                    ui.selectable_value(&mut self.selected_page, Page::Main, "Main");
+                    ui.selectable_value(&mut self.selected_page, Page::Debug, "Debug");
                     ui.menu_button("Eject", |ui| {
                         ui.label("Do you want to eject the DLL?");
                         if ui.button("No").clicked() {
@@ -86,51 +86,22 @@ impl RBotGUI {
                 });
                 ui.separator();
                 match self.selected_page {
-                    SelectedPage::Record => self.record_page.as_mut().map(|p| p.ui(ui)),
-                    SelectedPage::Replay => self.replay_page.as_mut().map(|p| p.ui(ui)),
-                    SelectedPage::Debug => self.debug_page.as_mut().map(|p| p.ui(ui)),
-                };
+                    Page::Main => {
+                        self.settings_panel.as_mut().map(|p| p.ui(ui));
+                        ui.separator();
+                        self.record_panel.as_mut().map(|p| p.ui(ui));
+                        ui.separator();
+                        self.replay_panel.as_mut().map(|p| p.ui(ui));
+                    }
+                    Page::Debug => {
+                        self.debug_panel.as_mut().map(|p| p.ui(ui));
+                    }
+                }
                 ui.separator();
                 ui.vertical_centered(|ui| {
                     ui.label("Made with ❤ by Cubesicle.");
                 });
             });
-
-        let mut popup_window = egui::Window::new("Info")
-            .open(&mut self.popup_open)
-            .collapsible(false)
-            .resizable(false);
-        if self.popup_anchored {
-            popup_window = popup_window.anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0));
-        }
-        popup_window.show(ctx, |ui| {
-            ui.add(
-                egui::Label::new(self.popup_text.as_ref().unwrap_or(&String::new()))
-                    .selectable(false),
-            );
-            self.popup_anchored = false;
-        });
-
-        if !self.popup_open {
-            self.popup_text = None;
-        }
-    }
-
-    pub fn open_popup(&mut self, text: &str) {
-        if self.popup_open {
-            let new_text = self
-                .popup_text
-                .as_ref()
-                .unwrap_or(&String::new())
-                .to_owned()
-                + "\n"
-                + text;
-            self.popup_text = Some(new_text);
-        } else {
-            self.popup_open = true;
-            self.popup_text = Some(text.to_string());
-        }
-        self.popup_anchored = true;
     }
 
     pub fn handle_keydown(&mut self, msg: u32, wparam: WPARAM, lparam: LPARAM) {
@@ -174,6 +145,24 @@ impl RBotGUI {
             .0;
         if vk_code == key {
             self.open = !self.open;
+        }
+    }
+
+    pub fn show_message_tooltip(
+        ui: &mut egui::Ui,
+        message: &mut Option<String>,
+        widget_response: &egui::Response,
+    ) {
+        match message {
+            Some(s) if widget_response.hovered() => {
+                egui::popup::show_tooltip(ui.ctx(), widget_response.id, |ui| {
+                    ui.label(s.as_str());
+                });
+            }
+            Some(_) if !widget_response.hovered() => {
+                *message = None;
+            }
+            _ => {}
         }
     }
 }

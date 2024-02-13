@@ -27,6 +27,8 @@ static_detour! {
     pub static PostUpdateHook: extern "thiscall" fn(usize, f32);
     pub static PauseGameHook: extern "thiscall" fn(usize, bool);
     pub static ResetLevelHook: extern "thiscall" fn(usize);
+    pub static OnQuitHook: extern "thiscall" fn(usize);
+    pub static LevelCompleteHook: extern "thiscall" fn(usize);
 }
 
 pub fn load() -> Result<()> {
@@ -45,6 +47,14 @@ pub fn load() -> Result<()> {
                 if bot::PAUSED.load(Ordering::Relaxed) {
                     return;
                 }
+                if gd::get_play_layer_addr().is_ok()
+                    && (bot::get_state() == bot::State::Recording
+                        || (bot::get_state() == bot::State::Replaying
+                            && !bot::ALLOW_FRAME_SKIPPING.load(Ordering::Relaxed)))
+                {
+                    SchedulerUpdateHook.call(addr, 1.0 / gd::MAX_TPS as f32);
+                    return;
+                }
                 SchedulerUpdateHook.call(addr, dt);
             })?
             .enable()?;
@@ -53,15 +63,18 @@ pub fn load() -> Result<()> {
             .initialize(
                 transmute(*gd::HANDLE_BUTTON_FN_ADDR),
                 |addr, is_held_down, button, is_player_1| {
+                    if bot::get_state() == bot::State::Replaying {
+                        return;
+                    }
                     if bot::get_state() == bot::State::Recording
                         && gd::get_play_layer_addr().is_ok()
                     {
                         log::info!(
-                            "Button: {:?}; Holding: {}; Player 1? {}; Frame: {};",
+                            "User: {} {:?} {} {}",
+                            gd::get_current_frame().unwrap_or_default(),
                             button,
                             is_held_down,
                             is_player_1,
-                            gd::get_current_frame().unwrap_or_default()
                         );
                         bot::add_button_event(
                             gd::get_current_frame().unwrap(),
@@ -84,6 +97,7 @@ pub fn load() -> Result<()> {
 
         PauseGameHook
             .initialize(transmute(*gd::PAUSE_GAME_FN_ADDR), |addr, p0| {
+                info!("Paused.");
                 if bot::get_state() == bot::State::Recording {
                     bot::release_all_buttons_at_frame(gd::get_current_frame().unwrap());
                 }
@@ -93,11 +107,26 @@ pub fn load() -> Result<()> {
 
         ResetLevelHook
             .initialize(transmute(*gd::RESET_LEVEL_FN_ADDR), |addr| {
+                info!("Reset.");
                 ResetLevelHook.call(addr);
                 if bot::get_state() == bot::State::Recording {
                     bot::trim_button_events_after_frame(gd::get_current_frame().unwrap());
                     bot::release_all_buttons_at_frame(gd::get_current_frame().unwrap());
                 }
+            })?
+            .enable()?;
+
+        OnQuitHook
+            .initialize(transmute(*gd::ON_QUIT_FN_ADDR), |addr| {
+                bot::set_state(bot::State::Standby);
+                OnQuitHook.call(addr);
+            })?
+            .enable()?;
+
+        LevelCompleteHook
+            .initialize(transmute(*gd::LEVEL_COMPLETE_FN_ADDR), |addr| {
+                bot::set_state(bot::State::Standby);
+                LevelCompleteHook.call(addr);
             })?
             .enable()?;
     }
@@ -113,6 +142,8 @@ pub fn unload() -> Result<()> {
         let _ = PostUpdateHook.disable();
         let _ = PauseGameHook.disable();
         let _ = ResetLevelHook.disable();
+        let _ = OnQuitHook.disable();
+        let _ = LevelCompleteHook.disable();
     }
 
     std::thread::sleep(std::time::Duration::from_millis(500));

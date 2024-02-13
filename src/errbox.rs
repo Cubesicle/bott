@@ -7,7 +7,7 @@ macro_rules! errbox {
                 &windows::core::HSTRING::from(format!("{}", $s)),
                 windows::core::w!("Error"),
                 windows::Win32::UI::WindowsAndMessaging::MB_ICONERROR,
-            );
+            )
         }
     };
 }
