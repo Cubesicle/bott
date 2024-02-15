@@ -19,10 +19,15 @@ impl super::Panel for Debug {
         ui.label(format!("PlayLayer: {:#06x}", unsafe {
             gd::get_play_layer_addr().unwrap_or_default()
         }));
+        ui.label(format!("Player 1: {:#06x}", unsafe {
+            gd::get_player_1_addr().unwrap_or_default()
+        }));
+        ui.label(format!("Player 2: {:#06x}", unsafe {
+            gd::get_player_2_addr().unwrap_or_default()
+        }));
         ui.add_space(ui.spacing().item_spacing.y);
 
-        let button = ui.button("Toggle console");
-        if button.clicked() {
+        if ui.button("Toggle console").clicked() {
             unsafe {
                 if AllocConsole().is_err() {
                     let _ = FreeConsole();
@@ -44,6 +49,5 @@ impl super::Panel for Debug {
         {
             bot::PAUSED.store(!bot::PAUSED.load(Ordering::Relaxed), Ordering::Relaxed);
         }
-        //logger_ui(ui);
     }
 }
