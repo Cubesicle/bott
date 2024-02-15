@@ -31,7 +31,7 @@ impl super::Panel for Save {
                         .unwrap_or("Replay saved.".to_string()),
                 );
             }
-            gui::RBotGUI::show_message_tooltip(ui, &mut self.save_button_msg, &save_button);
+            gui::BottGUI::show_message_tooltip(ui, &mut self.save_button_msg, &save_button);
         });
     }
 }

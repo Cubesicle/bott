@@ -49,7 +49,7 @@ impl super::Panel for Load {
                         .unwrap_or("Replay loaded.".to_string()),
                 );
             }
-            gui::RBotGUI::show_message_tooltip(ui, &mut self.load_button_msg, &load_button);
+            gui::BottGUI::show_message_tooltip(ui, &mut self.load_button_msg, &load_button);
             ui.menu_button("Delete", |ui| {
                 if ui.button("nuh uh").clicked() {
                     ui.close_menu();
@@ -67,7 +67,7 @@ impl super::Panel for Load {
                         ui.close_menu()
                     }
                 }
-                gui::RBotGUI::show_message_tooltip(ui, &mut self.delete_button_msg, &yes_button);
+                gui::BottGUI::show_message_tooltip(ui, &mut self.delete_button_msg, &yes_button);
             });
         });
     }

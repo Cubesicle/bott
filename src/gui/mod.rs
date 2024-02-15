@@ -22,7 +22,7 @@ enum Page {
     Debug,
 }
 
-pub struct RBotGUI {
+pub struct BottGUI {
     open: bool,
     settings_panel: Option<panels::Settings>,
     record_panel: Option<panels::Save>,
@@ -32,7 +32,7 @@ pub struct RBotGUI {
     keybinds: Option<HashMap<u16, Keybind>>,
 }
 
-impl RBotGUI {
+impl BottGUI {
     const fn new() -> Self {
         Self {
             open: true,
@@ -46,7 +46,7 @@ impl RBotGUI {
     }
 }
 
-impl RBotGUI {
+impl BottGUI {
     pub fn init(&mut self) {
         self.settings_panel = Some(panels::Settings::default());
         self.record_panel = Some(panels::Save::default());
@@ -167,4 +167,4 @@ impl RBotGUI {
 }
 
 pub static mut APP: OpenGLApp<i32> = OpenGLApp::new();
-pub static mut GUI: RBotGUI = RBotGUI::new();
+pub static mut GUI: BottGUI = BottGUI::new();

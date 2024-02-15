@@ -52,7 +52,7 @@ fn is_gd() -> bool {
 }
 
 fn unload(hinst_dll: HINSTANCE) {
-    info!("Unloading rBot.");
+    info!("Unloading Bott.");
     unsafe { FreeLibraryAndExitThread(hinst_dll, 0) };
 }
 
