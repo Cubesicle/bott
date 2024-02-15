@@ -69,7 +69,7 @@ pub fn load() -> Result<()> {
                     if bot::get_state() == bot::State::Recording
                         && gd::get_play_layer_addr().is_ok()
                     {
-                        log::info!(
+                        log::debug!(
                             "User: {} {:?} {} {}",
                             gd::get_current_frame().unwrap_or_default(),
                             button,
