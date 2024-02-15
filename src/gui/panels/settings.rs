@@ -66,7 +66,6 @@ impl super::Panel for Settings {
             ))
             .clicked()
         {
-            //bot::set_state(bot::State::Standby);
             bot::ALLOW_FRAME_SKIPPING.store(
                 !bot::ALLOW_FRAME_SKIPPING.load(Ordering::Relaxed),
                 Ordering::Relaxed,

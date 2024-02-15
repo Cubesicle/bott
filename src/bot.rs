@@ -100,7 +100,6 @@ pub fn add_button_event(frame: u32, button_event: ButtonEvent) {
 }
 
 pub fn trim_button_events_after_frame(frame: u32) {
-    //BUTTON_EVENTS.write().unwrap().retain(|k, _| *k < frame);
     while BUTTON_EVENTS
         .read()
         .unwrap()
