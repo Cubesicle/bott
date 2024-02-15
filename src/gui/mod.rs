@@ -4,13 +4,10 @@ use std::sync::atomic::Ordering;
 
 use egui_opengl_internal::OpenGLApp;
 use windows::Win32::Foundation::{LPARAM, WPARAM};
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    MapVirtualKeyW, MAPVK_VSC_TO_VK_EX, VIRTUAL_KEY, VK_CONTROL, VK_LCONTROL, VK_LMENU, VK_MENU,
-    VK_RCONTROL, VK_RMENU, VK_RSHIFT, VK_SHIFT,
-};
 use windows::Win32::UI::WindowsAndMessaging::{KF_EXTENDED, WM_KEYDOWN};
 
 use self::panels::Panel;
+use crate::bot;
 
 mod panels;
 
@@ -21,8 +18,6 @@ enum Keybind {
 
 #[derive(Eq, PartialEq)]
 enum Page {
-    //Record,
-    //Replay,
     Main,
     Debug,
 }
@@ -34,7 +29,7 @@ pub struct RBotGUI {
     replay_panel: Option<panels::Load>,
     debug_panel: Option<panels::Debug>,
     selected_page: Page,
-    keybinds: Option<HashMap<Keybind, VIRTUAL_KEY>>,
+    keybinds: Option<HashMap<u16, Keybind>>,
 }
 
 impl RBotGUI {
@@ -57,7 +52,8 @@ impl RBotGUI {
         self.record_panel = Some(panels::Save::default());
         self.replay_panel = Some(panels::Load::default());
         self.debug_panel = Some(panels::Debug::default());
-        self.keybinds = Some(HashMap::from([(Keybind::ToggleGUI, VK_RSHIFT)]));
+        use windows::Win32::UI::Input::KeyboardAndMouse::*;
+        self.keybinds = Some(HashMap::from([(VK_RSHIFT.0, Keybind::ToggleGUI)]));
     }
 
     pub fn name(&self) -> &'static str {
@@ -65,13 +61,28 @@ impl RBotGUI {
     }
 
     pub fn show(&mut self, ctx: &egui::Context, _: &mut i32) {
+        ctx.style_mut(|style| {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            style.visuals.window_stroke.color = match bot::get_state() {
+                bot::State::Recording
+                    if SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs()
+                        % 2
+                        == 0 =>
+                {
+                    egui::Style::default().visuals.error_fg_color
+                }
+                bot::State::Replaying => egui::Style::default().visuals.warn_fg_color,
+                _ => egui::Style::default().visuals.window_stroke.color,
+            };
+        });
         egui::Window::new(self.name())
             .default_size(egui::vec2(0.0, 0.0))
             .open(&mut self.open)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    //ui.selectable_value(&mut self.selected_page, SelectedPage::Record, "Record");
-                    //ui.selectable_value(&mut self.selected_page, SelectedPage::Replay, "Replay");
                     ui.selectable_value(&mut self.selected_page, Page::Main, "Main");
                     ui.selectable_value(&mut self.selected_page, Page::Debug, "Debug");
                     ui.menu_button("Eject", |ui| {
@@ -105,6 +116,7 @@ impl RBotGUI {
     }
 
     pub fn handle_keydown(&mut self, msg: u32, wparam: WPARAM, lparam: LPARAM) {
+        use windows::Win32::UI::Input::KeyboardAndMouse::*;
         if msg != WM_KEYDOWN {
             return;
         }
@@ -117,34 +129,21 @@ impl RBotGUI {
             let scan_code = (key_flags & 0xff) as u8;
             let is_extended_key = (key_flags as u32 & KF_EXTENDED) == KF_EXTENDED;
 
-            if vk_code == VK_SHIFT.0 {
-                unsafe { (MapVirtualKeyW(scan_code as u32, MAPVK_VSC_TO_VK_EX) & 0xffff) as u16 }
-            } else if vk_code == VK_CONTROL.0 {
-                if is_extended_key {
-                    VK_RCONTROL.0
-                } else {
-                    VK_LCONTROL.0
-                }
-            } else if vk_code == VK_MENU.0 {
-                if is_extended_key {
-                    VK_RMENU.0
-                } else {
-                    VK_LMENU.0
-                }
-            } else {
-                vk_code
+            match VIRTUAL_KEY(vk_code) {
+                VK_SHIFT => unsafe {
+                    (MapVirtualKeyW(scan_code as u32, MAPVK_VSC_TO_VK_EX) & 0xffff) as u16
+                },
+                VK_CONTROL if !is_extended_key => VK_LCONTROL.0,
+                VK_CONTROL if is_extended_key => VK_RCONTROL.0,
+                VK_MENU if !is_extended_key => VK_LMENU.0,
+                VK_MENU if is_extended_key => VK_RMENU.0,
+                _ => vk_code,
             }
         };
 
-        let key = self
-            .keybinds
-            .as_ref()
-            .unwrap()
-            .get(&Keybind::ToggleGUI)
-            .unwrap()
-            .0;
-        if vk_code == key {
-            self.open = !self.open;
+        match self.keybinds.as_ref().unwrap().get(&vk_code) {
+            Some(k) if *k == Keybind::ToggleGUI => self.open = !self.open,
+            _ => {}
         }
     }
 
