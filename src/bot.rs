@@ -38,9 +38,9 @@ pub struct ButtonEvent {
 impl ButtonEvent {
     pub fn new(button: PlayerButton, is_held_down: bool, is_player_1: bool) -> Self {
         Self {
-            button: button,
-            is_held_down: is_held_down,
-            is_player_1: is_player_1,
+            button,
+            is_held_down,
+            is_player_1,
         }
     }
 }
@@ -56,10 +56,10 @@ struct ButtonEventWithFrame {
 impl ButtonEventWithFrame {
     pub fn new(frame: u32, button: PlayerButton, is_held_down: bool, is_player_1: bool) -> Self {
         Self {
-            frame: frame,
-            button: button,
-            is_held_down: is_held_down,
-            is_player_1: is_player_1,
+            frame,
+            button,
+            is_held_down,
+            is_player_1,
         }
     }
 }
