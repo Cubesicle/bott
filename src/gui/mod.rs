@@ -62,18 +62,8 @@ impl BottGUI {
 
     pub fn show(&mut self, ctx: &egui::Context, _: &mut i32) {
         ctx.style_mut(|style| {
-            use std::time::{SystemTime, UNIX_EPOCH};
             style.visuals.window_stroke.color = match bot::get_state() {
-                bot::State::Recording
-                    if SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_secs()
-                        % 2
-                        == 0 =>
-                {
-                    egui::Style::default().visuals.error_fg_color
-                }
+                bot::State::Recording => egui::Style::default().visuals.error_fg_color,
                 bot::State::Replaying => egui::Style::default().visuals.warn_fg_color,
                 _ => egui::Style::default().visuals.window_stroke.color,
             };

@@ -47,11 +47,7 @@ pub fn load() -> Result<()> {
                 if bot::PAUSED.load(Ordering::Relaxed) {
                     return;
                 }
-                if gd::get_play_layer_addr().is_ok()
-                    && (bot::get_state() == bot::State::Recording
-                        || (bot::get_state() == bot::State::Replaying
-                            && !bot::ALLOW_FRAME_SKIPPING.load(Ordering::Relaxed)))
-                {
+                if bot::LOCK_DELTA_TIME.load(Ordering::Relaxed) {
                     SchedulerUpdateHook.call(addr, 1.0 / gd::MAX_TPS as f32);
                     return;
                 }
@@ -76,6 +72,7 @@ pub fn load() -> Result<()> {
                             is_held_down,
                             is_player_1,
                         );
+                        bot::truncate_button_events_at_frame(gd::get_current_frame().unwrap());
                         bot::add_button_event(
                             gd::get_current_frame().unwrap(),
                             bot::ButtonEvent::new(button, is_held_down, is_player_1),
@@ -97,7 +94,7 @@ pub fn load() -> Result<()> {
 
         PauseGameHook
             .initialize(transmute(*gd::PAUSE_GAME_FN_ADDR), |addr, p0| {
-                info!("Paused.");
+                log::debug!("Paused.");
                 if bot::get_state() == bot::State::Recording {
                     bot::release_all_buttons_at_frame(gd::get_current_frame().unwrap());
                 }
@@ -107,10 +104,10 @@ pub fn load() -> Result<()> {
 
         ResetLevelHook
             .initialize(transmute(*gd::RESET_LEVEL_FN_ADDR), |addr| {
-                info!("Reset.");
+                log::debug!("Reset.");
                 ResetLevelHook.call(addr);
                 if bot::get_state() == bot::State::Recording {
-                    bot::trim_button_events_after_frame(gd::get_current_frame().unwrap());
+                    bot::truncate_button_events_at_frame(gd::get_current_frame().unwrap());
                     bot::release_all_buttons_at_frame(gd::get_current_frame().unwrap());
                 }
             })?

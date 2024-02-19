@@ -14,7 +14,7 @@ use crate::{gd, hooks};
 
 lazy_static! {
     pub static ref PAUSED: AtomicBool = AtomicBool::new(false);
-    pub static ref ALLOW_FRAME_SKIPPING: AtomicBool = AtomicBool::new(false);
+    pub static ref LOCK_DELTA_TIME: AtomicBool = AtomicBool::new(true);
     pub static ref REPLAYS_DIR: PathBuf = crate::EXE_PATH.parent().unwrap().join("bott");
     static ref STATE: AtomicU8 = AtomicU8::new(0);
     static ref BUTTON_EVENTS: RwLock<IndexMap<u32, RwLock<LinkedList<ButtonEvent>>>> =
@@ -99,7 +99,7 @@ pub fn add_button_event(frame: u32, button_event: ButtonEvent) {
         .push_back(button_event);
 }
 
-pub fn trim_button_events_after_frame(frame: u32) {
+pub fn truncate_button_events_at_frame(frame: u32) {
     while BUTTON_EVENTS
         .read()
         .unwrap()

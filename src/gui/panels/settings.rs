@@ -46,7 +46,7 @@ impl super::Panel for Settings {
             ui.horizontal(|ui| {
                 ui.label("FPS cap:");
                 if ui
-                    .add(egui::DragValue::new(unsafe { &mut *fps }).clamp_range(60..=1000))
+                    .add(egui::DragValue::new(unsafe { &mut *fps }).clamp_range(60..=u32::MAX))
                     .changed()
                 {
                     let _ = unsafe { gd::update_custom_fps() };
@@ -59,23 +59,27 @@ impl super::Panel for Settings {
             ui.add_space(ui.spacing().item_spacing.y);
         }
 
+        ui.label("*Recommended");
         if ui
             .add(egui::Checkbox::new(
-                &mut bot::ALLOW_FRAME_SKIPPING.load(Ordering::Relaxed),
-                "Allow frame skipping",
+                &mut bot::LOCK_DELTA_TIME.load(Ordering::Relaxed),
+                "Lock delta time",
             ))
             .clicked()
         {
-            bot::ALLOW_FRAME_SKIPPING.store(
-                !bot::ALLOW_FRAME_SKIPPING.load(Ordering::Relaxed),
+            bot::LOCK_DELTA_TIME.store(
+                !bot::LOCK_DELTA_TIME.load(Ordering::Relaxed),
                 Ordering::Relaxed,
             );
         }
         ui.add_space(ui.spacing().item_spacing.y);
 
-        ui.label(format!("Current frame: {}", unsafe {
-            gd::get_current_frame().unwrap_or(0)
-        }));
+        ui.label(format!(
+            "Current frame: {}",
+            unsafe { gd::get_current_frame() }
+                .map(|f| f.to_string())
+                .unwrap_or("N/A".to_string())
+        ));
         ui.label(format!(
             "Button events in memory: {}",
             bot::get_button_event_count()
