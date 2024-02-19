@@ -11,6 +11,8 @@ lazy_static! {
     pub static ref GM_SHARED_STATE_FN_ADDR: usize = *BASE + 0x121540;
     pub static ref POST_UPDATE_FN_ADDR: usize = *BASE + 0x2e7220;
     pub static ref HANDLE_BUTTON_FN_ADDR: usize = *BASE + 0x1b69f0;
+    pub static ref PUSH_BUTTON_FN_ADDR: usize = *BASE + 0x2d1d30;
+    pub static ref RELEASE_BUTTON_FN_ADDR: usize = *BASE + 0x2d1f70;
     pub static ref PAUSE_GAME_FN_ADDR: usize = *BASE + 0x2eae80;
     pub static ref RESET_LEVEL_FN_ADDR: usize = *BASE + 0x2ea130;
     pub static ref ON_QUIT_FN_ADDR: usize = *BASE + 0x2eb480;

@@ -24,6 +24,8 @@ static_detour! {
     pub static WGLSwapBuffersHook: extern "stdcall" fn(HDC);
     pub static SchedulerUpdateHook: extern "thiscall" fn(usize, f32);
     pub static HandleButtonHook: extern "thiscall" fn(usize, bool, gd::PlayerButton, bool);
+    pub static PushButtonHook: extern "thiscall" fn(usize, gd::PlayerButton);
+    pub static ReleaseButtonHook: extern "thiscall" fn(usize, gd::PlayerButton);
     pub static PostUpdateHook: extern "thiscall" fn(usize, f32);
     pub static PauseGameHook: extern "thiscall" fn(usize, bool);
     pub static ResetLevelHook: extern "thiscall" fn(usize);
@@ -62,25 +64,33 @@ pub fn load() -> Result<()> {
                     if bot::get_state() == bot::State::Replaying {
                         return;
                     }
-                    if bot::get_state() == bot::State::Recording
-                        && gd::get_play_layer_addr().is_ok()
-                    {
-                        log::debug!(
-                            "User: {} {:?} {} {}",
-                            gd::get_current_frame().unwrap_or_default(),
-                            button,
-                            is_held_down,
-                            is_player_1,
-                        );
-                        bot::truncate_button_events_at_frame(gd::get_current_frame().unwrap());
-                        bot::add_button_event(
-                            gd::get_current_frame().unwrap(),
-                            bot::ButtonEvent::new(button, is_held_down, is_player_1),
-                        )
-                    }
                     HandleButtonHook.call(addr, is_held_down, button, is_player_1);
                 },
             )?
+            .enable()?;
+
+        PushButtonHook
+            .initialize(transmute(*gd::PUSH_BUTTON_FN_ADDR), |addr, button| {
+                if bot::get_state() == bot::State::Recording && gd::get_play_layer_addr().is_ok() {
+                    let frame = gd::get_current_frame().unwrap();
+                    let is_player_1 = addr == gd::get_player_1_addr().unwrap();
+                    bot::add_button_event(frame, bot::ButtonEvent::new(button, true, is_player_1));
+                    log::debug!("User: {} {:?} {} {}", frame, button, true, is_player_1,);
+                }
+                PushButtonHook.call(addr, button);
+            })?
+            .enable()?;
+
+        ReleaseButtonHook
+            .initialize(transmute(*gd::RELEASE_BUTTON_FN_ADDR), |addr, button| {
+                if bot::get_state() == bot::State::Recording && gd::get_play_layer_addr().is_ok() {
+                    let frame = gd::get_current_frame().unwrap();
+                    let is_player_1 = addr == gd::get_player_1_addr().unwrap();
+                    bot::add_button_event(frame, bot::ButtonEvent::new(button, false, is_player_1));
+                    log::debug!("User: {} {:?} {} {}", frame, button, false, is_player_1,);
+                }
+                ReleaseButtonHook.call(addr, button);
+            })?
             .enable()?;
 
         PostUpdateHook
@@ -136,6 +146,8 @@ pub fn unload() -> Result<()> {
         let _ = WGLSwapBuffersHook.disable();
         let _ = SchedulerUpdateHook.disable();
         let _ = HandleButtonHook.disable();
+        let _ = PushButtonHook.disable();
+        let _ = ReleaseButtonHook.disable();
         let _ = PostUpdateHook.disable();
         let _ = PauseGameHook.disable();
         let _ = ResetLevelHook.disable();
