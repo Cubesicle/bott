@@ -123,7 +123,41 @@ pub fn release_all_buttons_at_frame(frame: u32) {
 pub fn optimize_button_events() {
     let mut button_events = UnmappedButtonEvents::new();
     dump_unmapped_optimized(&mut button_events);
-    load_unmapped(&button_events);
+    BUTTON_EVENTS.write().unwrap().clear();
+    for b in button_events {
+        add_button_event(
+            b.frame,
+            ButtonEvent::new(b.button, b.is_held_down, b.is_player_1),
+        );
+    }
+}
+
+pub fn remove_player_2_button_events() {
+    let mut button_events = UnmappedButtonEvents::new();
+    dump_unmapped_optimized(&mut button_events);
+    BUTTON_EVENTS.write().unwrap().clear();
+    for b in button_events {
+        if b.is_player_1 {
+            add_button_event(
+                b.frame,
+                ButtonEvent::new(b.button, b.is_held_down, b.is_player_1),
+            );
+        }
+    }
+}
+
+pub fn remove_platformer_button_events() {
+    let mut button_events = UnmappedButtonEvents::new();
+    dump_unmapped_optimized(&mut button_events);
+    BUTTON_EVENTS.write().unwrap().clear();
+    for b in button_events {
+        if b.button == PlayerButton::Jump {
+            add_button_event(
+                b.frame,
+                ButtonEvent::new(b.button, b.is_held_down, b.is_player_1),
+            );
+        }
+    }
 }
 
 pub fn handle_frame(frame: u32) -> Result<()> {
@@ -170,11 +204,14 @@ pub fn load_replay(file_name: &str) -> Result<()> {
     );
     let replay_file_path = REPLAYS_DIR.join(file_name.to_string());
     let mut rdr = csv::Reader::from_reader(File::open(replay_file_path)?);
-    let mut unmapped_button_events = UnmappedButtonEvents::default();
-    for b in rdr.deserialize() {
-        unmapped_button_events.push_back(b?);
+    BUTTON_EVENTS.write().unwrap().clear();
+    for b in rdr.deserialize::<ButtonEventWithFrame>() {
+        let b = b?;
+        add_button_event(
+            b.frame,
+            ButtonEvent::new(b.button, b.is_held_down, b.is_player_1),
+        );
     }
-    load_unmapped(&unmapped_button_events);
     Ok(())
 }
 
@@ -194,15 +231,5 @@ fn dump_unmapped_optimized(unmapped_button_events: &mut UnmappedButtonEvents) {
                 ));
             }
         }
-    }
-}
-
-fn load_unmapped(unmapped_button_events: &UnmappedButtonEvents) {
-    *BUTTON_EVENTS.write().unwrap() = IndexMap::new();
-    for b in unmapped_button_events {
-        add_button_event(
-            b.frame,
-            ButtonEvent::new(b.button, b.is_held_down, b.is_player_1),
-        );
     }
 }

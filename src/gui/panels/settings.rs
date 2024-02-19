@@ -87,5 +87,11 @@ impl super::Panel for Settings {
         if ui.button("Remove excess button events").clicked() {
             bot::optimize_button_events();
         }
+        if ui.button("Remove player 2 button events").clicked() {
+            bot::remove_player_2_button_events();
+        }
+        if ui.button("Remove platformer button events").clicked() {
+            bot::remove_platformer_button_events();
+        }
     }
 }
