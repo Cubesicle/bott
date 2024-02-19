@@ -27,14 +27,13 @@ lazy_static! {
 
 fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {
-        std::env::set_var("RUST_LOG", "trace");
-        pretty_env_logger::init_timed();
+        egui_logger::init().unwrap();
         info!("geometey dahs found!!1");
 
         unsafe { gui::GUI.init() };
         hooks::load().unwrap();
 
-        while EXITING.load(Ordering::Relaxed) == false {}
+        while !EXITING.load(Ordering::Relaxed) {}
 
         hooks::unload().unwrap();
     } else {

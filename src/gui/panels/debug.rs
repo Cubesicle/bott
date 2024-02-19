@@ -1,7 +1,6 @@
 use std::sync::atomic::Ordering;
 
 use egui::Ui;
-use windows::Win32::System::Console::{AllocConsole, FreeConsole};
 
 use crate::{bot, gd};
 
@@ -27,15 +26,6 @@ impl super::Panel for Debug {
         }));
         ui.add_space(ui.spacing().item_spacing.y);
 
-        if ui.button("Toggle console").clicked() {
-            unsafe {
-                if AllocConsole().is_err() {
-                    let _ = FreeConsole();
-                }
-            }
-        }
-        ui.add_space(ui.spacing().item_spacing.y);
-
         if ui
             .button(format!(
                 "{}",
@@ -49,5 +39,14 @@ impl super::Panel for Debug {
         {
             bot::PAUSED.store(!bot::PAUSED.load(Ordering::Relaxed), Ordering::Relaxed);
         }
+        ui.add_space(ui.spacing().item_spacing.y);
+
+        ui.heading("Logging");
+        ui.add_space(ui.spacing().item_spacing.y);
+        egui::ScrollArea::new(egui::Vec2b::new(false, true))
+            .max_height(300.0)
+            .show(ui, |ui| {
+                egui_logger::logger_ui(ui);
+            });
     }
 }
