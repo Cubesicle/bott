@@ -7,15 +7,18 @@ use std::sync::RwLock;
 use anyhow::{ensure, Result};
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::gd::PlayerButton;
 use crate::{gd, hooks};
 
 lazy_static! {
-    pub static ref PAUSED: AtomicBool = AtomicBool::new(false);
-    pub static ref LOCK_DELTA_TIME: AtomicBool = AtomicBool::new(true);
     pub static ref REPLAYS_DIR: PathBuf = crate::EXE_PATH.parent().unwrap().join("bott");
+    pub static ref RECORD_PLAYER_2: AtomicBool = AtomicBool::new(false);
+    pub static ref RECORD_PLATFORMER: AtomicBool = AtomicBool::new(false);
+    pub static ref LOCK_DELTA_TIME: AtomicBool = AtomicBool::new(true);
+    pub static ref PAUSED: AtomicBool = AtomicBool::new(false);
     static ref STATE: AtomicU8 = AtomicU8::new(0);
     static ref BUTTON_EVENTS: RwLock<IndexMap<u32, RwLock<LinkedList<ButtonEvent>>>> =
         RwLock::new(IndexMap::new());
@@ -163,12 +166,9 @@ pub fn remove_platformer_button_events() {
 pub fn handle_frame(frame: u32) -> Result<()> {
     if let Some(button_events) = BUTTON_EVENTS.read().unwrap().get(&frame) {
         for button_event in button_events.read().unwrap().iter() {
-            log::debug!(
+            info!(
                 "Bot: {} {:?} {} {}",
-                frame,
-                button_event.button,
-                button_event.is_held_down,
-                button_event.is_player_1,
+                frame, button_event.button, button_event.is_held_down, button_event.is_player_1,
             );
             hooks::HandleButtonHook.call(
                 unsafe { gd::get_play_layer_addr()? },
@@ -219,9 +219,8 @@ fn dump_unmapped_optimized(unmapped_button_events: &mut UnmappedButtonEvents) {
     let mut pressed_buttons = HashSet::<(PlayerButton, bool)>::new();
     for (k, v) in BUTTON_EVENTS.read().unwrap().iter() {
         for v in v.read().unwrap().iter() {
-            if (v.is_held_down == true && pressed_buttons.insert((v.button, v.is_player_1)) == true)
-                || (v.is_held_down == false
-                    && pressed_buttons.remove(&(v.button, v.is_player_1)) == true)
+            if (v.is_held_down && pressed_buttons.insert((v.button, v.is_player_1)))
+                || (!v.is_held_down && pressed_buttons.remove(&(v.button, v.is_player_1)))
             {
                 unmapped_button_events.push_back(ButtonEventWithFrame::new(
                     *k,

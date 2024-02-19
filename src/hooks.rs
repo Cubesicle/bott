@@ -71,24 +71,14 @@ pub fn load() -> Result<()> {
 
         PushButtonHook
             .initialize(transmute(*gd::PUSH_BUTTON_FN_ADDR), |addr, button| {
-                if bot::get_state() == bot::State::Recording && gd::get_play_layer_addr().is_ok() {
-                    let frame = gd::get_current_frame().unwrap();
-                    let is_player_1 = addr == gd::get_player_1_addr().unwrap();
-                    bot::add_button_event(frame, bot::ButtonEvent::new(button, true, is_player_1));
-                    log::debug!("User: {} {:?} {} {}", frame, button, true, is_player_1,);
-                }
+                button_detour(addr, button, true);
                 PushButtonHook.call(addr, button);
             })?
             .enable()?;
 
         ReleaseButtonHook
             .initialize(transmute(*gd::RELEASE_BUTTON_FN_ADDR), |addr, button| {
-                if bot::get_state() == bot::State::Recording && gd::get_play_layer_addr().is_ok() {
-                    let frame = gd::get_current_frame().unwrap();
-                    let is_player_1 = addr == gd::get_player_1_addr().unwrap();
-                    bot::add_button_event(frame, bot::ButtonEvent::new(button, false, is_player_1));
-                    log::debug!("User: {} {:?} {} {}", frame, button, false, is_player_1,);
-                }
+                button_detour(addr, button, false);
                 ReleaseButtonHook.call(addr, button);
             })?
             .enable()?;
@@ -104,7 +94,7 @@ pub fn load() -> Result<()> {
 
         PauseGameHook
             .initialize(transmute(*gd::PAUSE_GAME_FN_ADDR), |addr, p0| {
-                log::debug!("Paused.");
+                info!("Paused.");
                 if bot::get_state() == bot::State::Recording {
                     bot::release_all_buttons_at_frame(gd::get_current_frame().unwrap());
                 }
@@ -114,7 +104,7 @@ pub fn load() -> Result<()> {
 
         ResetLevelHook
             .initialize(transmute(*gd::RESET_LEVEL_FN_ADDR), |addr| {
-                log::debug!("Reset.");
+                info!("Reset.");
                 ResetLevelHook.call(addr);
                 if bot::get_state() == bot::State::Recording {
                     bot::truncate_button_events_at_frame(gd::get_current_frame().unwrap());
@@ -125,6 +115,7 @@ pub fn load() -> Result<()> {
 
         OnQuitHook
             .initialize(transmute(*gd::ON_QUIT_FN_ADDR), |addr| {
+                bot::optimize_button_events();
                 bot::set_state(bot::State::Standby);
                 OnQuitHook.call(addr);
             })?
@@ -132,6 +123,7 @@ pub fn load() -> Result<()> {
 
         LevelCompleteHook
             .initialize(transmute(*gd::LEVEL_COMPLETE_FN_ADDR), |addr| {
+                bot::optimize_button_events();
                 bot::set_state(bot::State::Standby);
                 LevelCompleteHook.call(addr);
             })?
@@ -216,7 +208,29 @@ extern "stdcall" fn call_wnd_proc_detour(
     unsafe { CallWindowProcW(*OLD_WND_PROC.get().unwrap(), hwnd, msg, wparam, lparam) }
 }
 
-pub fn get_module_symbol_address(module: &str, symbol: &str) -> Result<usize> {
+unsafe fn button_detour(player_addr: usize, button: gd::PlayerButton, is_held_down: bool) {
+    if bot::get_state() != bot::State::Recording || !gd::get_play_layer_addr().is_ok() {
+        return;
+    }
+    if button != gd::PlayerButton::Jump && !bot::RECORD_PLATFORMER.load(Ordering::Relaxed) {
+        return;
+    }
+    let is_player_1 = player_addr == gd::get_player_1_addr().unwrap();
+    if !is_player_1 && !bot::RECORD_PLAYER_2.load(Ordering::Relaxed) {
+        return;
+    }
+    let frame = gd::get_current_frame().unwrap();
+    bot::add_button_event(
+        frame,
+        bot::ButtonEvent::new(button, is_held_down, is_player_1),
+    );
+    info!(
+        "User: {} {:?} {} {}",
+        frame, button, is_held_down, is_player_1
+    );
+}
+
+fn get_module_symbol_address(module: &str, symbol: &str) -> Result<usize> {
     let symbol_cstring = CString::new(symbol).unwrap_or_default();
     let symbol_ansi = PCSTR(symbol_cstring.to_bytes_with_nul().as_ptr());
     let handle = unsafe { GetModuleHandleW(&HSTRING::from(module)) }

@@ -42,6 +42,32 @@ impl super::Panel for Settings {
         });
         ui.add_space(ui.spacing().item_spacing.y);
 
+        if ui
+            .add(egui::Checkbox::new(
+                &mut bot::RECORD_PLAYER_2.load(Ordering::Relaxed),
+                "Record player 2 buttons",
+            ))
+            .clicked()
+        {
+            bot::RECORD_PLAYER_2.store(
+                !bot::RECORD_PLAYER_2.load(Ordering::Relaxed),
+                Ordering::Relaxed,
+            );
+        }
+        if ui
+            .add(egui::Checkbox::new(
+                &mut bot::RECORD_PLATFORMER.load(Ordering::Relaxed),
+                "Record platformer buttons",
+            ))
+            .clicked()
+        {
+            bot::RECORD_PLATFORMER.store(
+                !bot::RECORD_PLATFORMER.load(Ordering::Relaxed),
+                Ordering::Relaxed,
+            );
+        }
+        ui.add_space(ui.spacing().item_spacing.y);
+
         if let Ok(fps) = unsafe { gd::get_mut_fps() } {
             ui.horizontal(|ui| {
                 ui.label("FPS cap:");
@@ -84,9 +110,6 @@ impl super::Panel for Settings {
             "Button events in memory: {}",
             bot::get_button_event_count()
         ));
-        if ui.button("Remove excess button events").clicked() {
-            bot::optimize_button_events();
-        }
         if ui.button("Remove player 2 button events").clicked() {
             bot::remove_player_2_button_events();
         }
