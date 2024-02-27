@@ -4,7 +4,6 @@ use std::sync::atomic::Ordering;
 use std::sync::{Once, OnceLock};
 
 use anyhow::{Context, Result};
-use lazy_static::lazy_static;
 use log::info;
 use retour::static_detour;
 use windows::core::{HSTRING, PCSTR};
@@ -17,7 +16,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use crate::{bot, gd, gui};
 
-lazy_static! {}
 static OLD_WND_PROC: OnceLock<WNDPROC> = OnceLock::new();
 
 static_detour! {

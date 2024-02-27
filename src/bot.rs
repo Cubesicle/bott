@@ -13,13 +13,13 @@ use serde::{Deserialize, Serialize};
 use crate::gd::PlayerButton;
 use crate::{gd, hooks};
 
+pub static RECORD_PLAYER_2: AtomicBool = AtomicBool::new(false);
+pub static RECORD_PLATFORMER: AtomicBool = AtomicBool::new(false);
+pub static LOCK_DELTA_TIME: AtomicBool = AtomicBool::new(true);
+pub static PAUSED: AtomicBool = AtomicBool::new(false);
+static STATE: AtomicU8 = AtomicU8::new(0);
 lazy_static! {
     pub static ref REPLAYS_DIR: PathBuf = crate::EXE_PATH.parent().unwrap().join("bott");
-    pub static ref RECORD_PLAYER_2: AtomicBool = AtomicBool::new(false);
-    pub static ref RECORD_PLATFORMER: AtomicBool = AtomicBool::new(false);
-    pub static ref LOCK_DELTA_TIME: AtomicBool = AtomicBool::new(true);
-    pub static ref PAUSED: AtomicBool = AtomicBool::new(false);
-    static ref STATE: AtomicU8 = AtomicU8::new(0);
     static ref BUTTON_EVENTS: RwLock<IndexMap<u32, RwLock<LinkedList<ButtonEvent>>>> =
         RwLock::new(IndexMap::new());
 }

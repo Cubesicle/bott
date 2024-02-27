@@ -16,13 +16,13 @@ use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleF
 use windows::Win32::System::SystemServices::*;
 use windows::Win32::UI::Shell::StrCmpW;
 
+static EXITING: AtomicBool = AtomicBool::new(false);
 lazy_static! {
     static ref EXE_PATH: PathBuf = {
         let mut buf = [0; MAX_PATH as usize];
         unsafe { GetModuleFileNameW(None, &mut buf) };
         PathBuf::from(String::from_utf16(&buf).unwrap().trim().to_string())
     };
-    static ref EXITING: AtomicBool = AtomicBool::new(false);
 }
 
 fn main_thread(hinst_dll: HINSTANCE) {
