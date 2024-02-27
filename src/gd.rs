@@ -1,24 +1,23 @@
 use std::mem::transmute;
 
 use anyhow::{anyhow, Result};
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 
 // https://github.com/Prevter/gd.hpp/tree/main/include/mappings
-lazy_static! {
-    pub static ref BASE: usize = unsafe { GetModuleHandleW(None) }.unwrap().0 as usize;
-    pub static ref GM_SHARED_STATE_FN_ADDR: usize = *BASE + 0x121540;
-    pub static ref POST_UPDATE_FN_ADDR: usize = *BASE + 0x2e7220;
-    pub static ref HANDLE_BUTTON_FN_ADDR: usize = *BASE + 0x1b69f0;
-    pub static ref PUSH_BUTTON_FN_ADDR: usize = *BASE + 0x2d1d30;
-    pub static ref RELEASE_BUTTON_FN_ADDR: usize = *BASE + 0x2d1f70;
-    pub static ref PAUSE_GAME_FN_ADDR: usize = *BASE + 0x2eae80;
-    pub static ref RESET_LEVEL_FN_ADDR: usize = *BASE + 0x2ea130;
-    pub static ref ON_QUIT_FN_ADDR: usize = *BASE + 0x2eb480;
-    pub static ref LEVEL_COMPLETE_FN_ADDR: usize = *BASE + 0x2ddb60;
-    pub static ref UPDATE_FPS_FN_ADDR: usize = *BASE + 0x12ec60;
-}
+pub static BASE: Lazy<usize> = Lazy::new(|| unsafe { GetModuleHandleW(None) }.unwrap().0 as usize);
+pub static GM_SHARED_STATE_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x121540);
+pub static POST_UPDATE_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x2e7220);
+pub static HANDLE_BUTTON_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x1b69f0);
+pub static PUSH_BUTTON_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x2d1d30);
+pub static RELEASE_BUTTON_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x2d1f70);
+pub static PAUSE_GAME_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x2eae80);
+pub static RESET_LEVEL_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x2ea130);
+pub static ON_QUIT_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x2eb480);
+pub static LEVEL_COMPLETE_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x2ddb60);
+pub static UPDATE_FPS_FN_ADDR: Lazy<usize> = Lazy::new(|| *BASE + 0x12ec60);
+
 pub static MAX_TPS: u8 = 240;
 pub static CUSTOM_FPS_TARGET_OFFSET: usize = 0x384;
 pub static PLAY_LAYER_OFFSET: usize = 0x198;

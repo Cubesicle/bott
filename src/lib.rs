@@ -8,8 +8,8 @@ use std::ffi::c_void;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use lazy_static::lazy_static;
 use log::info;
+use once_cell::sync::Lazy;
 use windows::core::{w, HSTRING};
 use windows::Win32::Foundation::{HINSTANCE, MAX_PATH};
 use windows::Win32::System::LibraryLoader::{FreeLibraryAndExitThread, GetModuleFileNameW};
@@ -17,13 +17,11 @@ use windows::Win32::System::SystemServices::*;
 use windows::Win32::UI::Shell::StrCmpW;
 
 static EXITING: AtomicBool = AtomicBool::new(false);
-lazy_static! {
-    static ref EXE_PATH: PathBuf = {
-        let mut buf = [0; MAX_PATH as usize];
-        unsafe { GetModuleFileNameW(None, &mut buf) };
-        PathBuf::from(String::from_utf16(&buf).unwrap().trim().to_string())
-    };
-}
+static EXE_PATH: Lazy<PathBuf> = Lazy::new(|| {
+    let mut buf = [0; MAX_PATH as usize];
+    unsafe { GetModuleFileNameW(None, &mut buf) };
+    PathBuf::from(String::from_utf16(&buf).unwrap().trim().to_string())
+});
 
 fn main_thread(hinst_dll: HINSTANCE) {
     if is_gd() {

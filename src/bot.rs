@@ -6,8 +6,8 @@ use std::sync::RwLock;
 
 use anyhow::{ensure, Result};
 use indexmap::IndexMap;
-use lazy_static::lazy_static;
 use log::info;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use crate::gd::PlayerButton;
@@ -17,12 +17,11 @@ pub static RECORD_PLAYER_2: AtomicBool = AtomicBool::new(false);
 pub static RECORD_PLATFORMER: AtomicBool = AtomicBool::new(false);
 pub static LOCK_DELTA_TIME: AtomicBool = AtomicBool::new(true);
 pub static PAUSED: AtomicBool = AtomicBool::new(false);
+pub static REPLAYS_DIR: Lazy<PathBuf> =
+    Lazy::new(|| crate::EXE_PATH.parent().unwrap().join("bott"));
 static STATE: AtomicU8 = AtomicU8::new(0);
-lazy_static! {
-    pub static ref REPLAYS_DIR: PathBuf = crate::EXE_PATH.parent().unwrap().join("bott");
-    static ref BUTTON_EVENTS: RwLock<IndexMap<u32, RwLock<LinkedList<ButtonEvent>>>> =
-        RwLock::new(IndexMap::new());
-}
+static BUTTON_EVENTS: RwLock<Lazy<IndexMap<u32, RwLock<LinkedList<ButtonEvent>>>>> =
+    RwLock::new(Lazy::new(|| IndexMap::new()));
 
 #[derive(Eq, PartialEq)]
 pub enum State {
