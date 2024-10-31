@@ -12,11 +12,10 @@ include(FetchContent)
 FetchContent_Declare(
     Corrosion
     GIT_REPOSITORY https://github.com/corrosion-rs/corrosion.git
-    GIT_TAG v0.5 # Optionally specify a commit hash, version tag or branch here
+    GIT_TAG v0.5
 )
 FetchContent_MakeAvailable(Corrosion)
 
-# Import targets defined in a package or workspace manifest `Cargo.toml` file
 corrosion_import_crate(
     MANIFEST_PATH Cargo.toml
     CRATES rust-ffi
@@ -29,8 +28,11 @@ corrosion_experimental_cbindgen(
 
 add_library(${PROJECT_NAME} SHARED
     cpp-src/main.cpp
-    # Add any extra C++ source files here
+    cpp-src/ffi.cpp
+    cpp-src/keybinds.cpp
 )
+
+target_include_directories(${PROJECT_NAME} PRIVATE include)
 
 target_link_libraries(${PROJECT_NAME} rust_ffi)
 

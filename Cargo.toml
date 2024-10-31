@@ -9,3 +9,10 @@ crate-type = ["staticlib"]
 
 [dependencies]
 egui = "0.29"
+egui_extras = "0.29"
+parking_lot = "0.12"
+strum = "0.26"
+strum_macros = "0.26"
+
+[build-dependencies]
+bindgen = "0.70"
