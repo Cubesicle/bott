@@ -1,4 +1,4 @@
-use std::{ffi::c_void, mem::transmute};
+use std::{ffi::{c_int, c_void}, mem::transmute};
 
 mod bot;
 mod gd;
@@ -17,4 +17,30 @@ pub extern "C" fn gui_is_showing() -> bool {
 #[no_mangle]
 pub extern "C" fn show_gui(show: bool) {
     gui::show(show);
+}
+
+#[no_mangle]
+pub extern "C" fn bot_is_recording() -> bool {
+    *bot::MODE.lock() == bot::Mode::Record
+}
+
+#[no_mangle]
+pub extern "C" fn bot_is_replaying() -> bool {
+    *bot::MODE.lock() == bot::Mode::Replay
+}
+
+#[no_mangle]
+pub extern "C" fn bot_record_input(frame: c_int, pressed: bool, button: c_int, is_player_1: bool) {
+    let button = match button {
+        1 => gd::PlayerButton::Jump,
+        2 => gd::PlayerButton::Left,
+        3 => gd::PlayerButton::Right,
+        _ => return,
+    };
+
+    bot::record_input(frame, bot::PlayerInput::new(
+        pressed,
+        button,
+        is_player_1,
+    ));
 }

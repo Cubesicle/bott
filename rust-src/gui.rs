@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 use parking_lot::Mutex;
-use crate::bot::{MODE, Mode::Standby, Mode::Record, Mode::Replay};
+use crate::bot::{self, Mode::{Record, Replay, Standby}, MODE};
 
 #[cfg(not(target_os = "android"))]
 macro_rules! window {
@@ -46,7 +46,7 @@ pub fn run(ctx: &egui::Context) {
             .size(egui_extras::Size::exact(footer_height))
             .vertical(|mut strip| {
                 strip.cell(|ui| {
-                    ui.label("text");
+                    ui.label(format!("Inputs: {}", bot::RECORDED_INPUTS.lock().len()));
                 });
                 strip.cell(|ui| {
                     ui.separator();

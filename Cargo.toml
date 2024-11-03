@@ -10,6 +10,7 @@ crate-type = ["staticlib"]
 [dependencies]
 egui = "0.29"
 egui_extras = "0.29"
+indexmap = "2.6"
 parking_lot = "0.12"
 strum = "0.26"
 strum_macros = "0.26"

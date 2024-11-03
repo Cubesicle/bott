@@ -28,3 +28,11 @@ pub mod log {
         unsafe { log_error(s); }
     }
 }
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+#[repr(C)]
+pub enum PlayerButton {
+    Jump = 1,
+    Left = 2,
+    Right = 3,
+}
