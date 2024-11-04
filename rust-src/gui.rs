@@ -23,10 +23,13 @@ pub fn run(ctx: &egui::Context) {
         ctx.style().visuals.window_stroke.width,
         match mode {
             Standby => ctx.style().visuals.window_stroke.color,
-            Record => match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_secs() {
-                s if s % 2 == 0 => egui::Color32::from_rgb(220, 38, 38),
-                _ => ctx.style().visuals.window_stroke.color,
-            },
+            Record => egui::Color32::from_rgb(220, 38, 38).lerp_to_gamma(
+                ctx.style().visuals.window_stroke.color,
+                (0.5 * f32::sin(
+                    (SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis() % 1000) as f32 /
+                    (500.0 / core::f32::consts::PI)
+                ) + 0.5).clamp(0.0, 1.0)
+            ),
             Replay => egui::Color32::from_rgb(37, 99, 235),
         }
     ))).default_size(egui::vec2(0.0, 0.0)).show(ctx, |ui| {
