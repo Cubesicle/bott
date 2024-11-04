@@ -29,7 +29,7 @@ pub mod log {
     }
 }
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[repr(C)]
 pub enum PlayerButton {
     Jump = 1,

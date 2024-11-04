@@ -13,20 +13,20 @@ $execute {
 #include <Geode/modify/GJBaseGameLayer.hpp>
 class $modify(GJBaseGameLayer) {
     void handleButton(bool pressed, int button, bool is_player_1) {
-        if (!bot_is_recording())
-            return GJBaseGameLayer::handleButton(pressed, button, is_player_1);
+        GJBaseGameLayer::handleButton(pressed, button, is_player_1);
+
+        if (!bot_is_recording()) return;
         
         record_input(PlayLayer::get(), pressed, static_cast<PlayerButton>(button), is_player_1);
-
-        GJBaseGameLayer::handleButton(pressed, button, is_player_1);
     }
 
     void processCommands(float dt) {
-        if (!bot_is_replaying()) return GJBaseGameLayer::processCommands(dt);
-
-        log::debug("{}", m_gameState.m_currentProgress);
-
         GJBaseGameLayer::processCommands(dt);
+
+        if (!bot_is_replaying()) return;
+
+        const int frame = this->m_gameState.m_currentProgress;
+        bot_handle_frame(frame, this, getNonVirtual(&GJBaseGameLayer::handleButton));
     }
 };
 

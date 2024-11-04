@@ -46,7 +46,12 @@ pub fn run(ctx: &egui::Context) {
             .size(egui_extras::Size::exact(footer_height))
             .vertical(|mut strip| {
                 strip.cell(|ui| {
-                    ui.label(format!("Inputs: {}", bot::RECORDED_INPUTS.lock().len()));
+                    ui.label(format!(
+                        "Inputs: {}",
+                        bot::RECORDED_INPUTS.try_lock()
+                            .and_then(|inputs| Some(inputs.len().to_string()))
+                            .unwrap_or("loading...".to_string())
+                    ));
                 });
                 strip.cell(|ui| {
                     ui.separator();
