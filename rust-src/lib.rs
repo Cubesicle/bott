@@ -38,8 +38,7 @@ pub extern "C" fn bot_record_input(frame: c_int, pressed: bool, button: c_int, i
         _ => return,
     };
 
-    bot::record_input(frame, bot::PlayerInput::new(
-        pressed,
+    bot::record_input(frame, pressed, bot::PlayerInput::new(
         button,
         is_player_1,
     ));

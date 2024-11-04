@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ffi::c_void, sync::LazyLock, thread};
+use std::{ffi::c_void, sync::LazyLock, thread};
 use indexmap::IndexMap;
 use parking_lot::Mutex;
 use strum_macros::Display;
@@ -13,15 +13,13 @@ pub enum Mode {
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct PlayerInput {
-    pressed: bool,
     button: gd::PlayerButton,
     is_player_1: bool,
 }
 
 impl PlayerInput {
-    pub fn new(pressed: bool, button: gd::PlayerButton, is_player_1: bool) -> Self {
+    pub fn new(button: gd::PlayerButton, is_player_1: bool) -> Self {
         PlayerInput {
-            pressed,
             button,
             is_player_1,
         }
@@ -29,35 +27,44 @@ impl PlayerInput {
 }
 
 pub static MODE: Mutex<Mode> = Mutex::new(Mode::Standby);
-pub static RECORDED_INPUTS: LazyLock<Mutex<IndexMap<i32, HashSet<PlayerInput>>>> = LazyLock::new(|| 
+pub static RECORDED_INPUTS: LazyLock<Mutex<IndexMap<i32, IndexMap<PlayerInput, bool>>>> = LazyLock::new(|| 
     Mutex::new(IndexMap::new())
 );
 
-pub fn record_input(frame: i32, input: PlayerInput) {
+pub fn record_input(frame: i32, pressed: bool, input: PlayerInput) {
     thread::spawn(move || {
         let inputs = &mut *RECORDED_INPUTS.lock();
         
-        while inputs.last().map(|(k, _)| k >= &frame).unwrap_or(false) {
+        while inputs.last().map(|(k, _)| k > &frame).unwrap_or(false) {
             inputs.pop();
         }
         
-        let is_last_input_pressed = inputs.iter().rev().find_map(|(_, v)|
-            v.iter().find(|PlayerInput { pressed: _, button, is_player_1 }|
-                button == &input.button && is_player_1 == &input.is_player_1
-            ).map(|input| input.pressed)
-        );
-        if is_last_input_pressed == Some(input.pressed) {
-            return;
-        }
+        if inputs.is_empty() && !pressed { return; }
         
-        if let Some(input_set) = inputs.get_mut(&frame) {
-            input_set.insert(input);
+        let is_last_input_pressed = inputs.iter().rev().find_map(|(k, v)|
+            (k != &frame).then(|| v.get(&input)).flatten()
+        );
+        if is_last_input_pressed == Some(&pressed) {
+            if let Some(input_map) = inputs.get_mut(&frame) {
+                if let Some(input_pressed) = input_map.get(&input) {
+                    if input_pressed != &pressed {
+                        input_map.shift_remove(&input);
+                        if input_map.is_empty() { inputs.shift_remove(&frame); }
+                    }
+                }
+            }
+        } else if let Some(input_map) = inputs.get_mut(&frame) {
+            input_map.insert(input, pressed);
         } else {
-            let mut input_set = HashSet::<PlayerInput>::new();
-            input_set.insert(input);
+            let mut input_map = IndexMap::<PlayerInput, bool>::new();
+            input_map.insert(input, pressed);
 
-            inputs.insert(frame, input_set);
+            inputs.insert(frame, input_map);
         };
+        
+        if inputs.first().map(|(k, v)| k == &1 && v.values().find(|v| **v).is_none()).unwrap_or(false) {
+            inputs.shift_remove_index(0);
+        }
     });
 }
 
@@ -66,7 +73,7 @@ pub fn handle_frame(
     this_ptr: *const c_void,
     handle_button: fn(*const c_void, bool, gd::PlayerButton, bool)
 ) {
-    RECORDED_INPUTS.lock().get(&frame).and_then(|input_set| Some(input_set.iter().for_each(|input| {
-        handle_button(this_ptr, input.pressed, input.button, input.is_player_1);
+    RECORDED_INPUTS.lock().get(&frame).and_then(|input_map| Some(input_map.iter().for_each(|(input, pressed)| {
+        handle_button(this_ptr, *pressed, input.button, input.is_player_1);
     })));
 }

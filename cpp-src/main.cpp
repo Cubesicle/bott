@@ -4,7 +4,7 @@
 
 using namespace geode::prelude;
 
-void record_input(PlayLayer *play_layer, bool pressed, PlayerButton button, bool is_player_1);
+void record_input(PlayLayer *play_layer, int offset, bool pressed, PlayerButton button, bool is_player_1);
 
 $execute {
     egui_api::add_run_fn(gui_run);
@@ -17,7 +17,7 @@ class $modify(GJBaseGameLayer) {
 
         if (!bot_is_recording()) return;
         
-        record_input(PlayLayer::get(), pressed, static_cast<PlayerButton>(button), is_player_1);
+        record_input(PlayLayer::get(), 0, pressed, static_cast<PlayerButton>(button), is_player_1);
     }
 
     void processCommands(float dt) {
@@ -37,12 +37,12 @@ class $modify(PlayLayer) {
 
         if (!bot_is_recording()) return;
 
-        record_input(this, false, PlayerButton::Jump, true);
-        record_input(this, false, PlayerButton::Jump, false);
-        record_input(this, false, PlayerButton::Left, true);
-        record_input(this, false, PlayerButton::Left, false);
-        record_input(this, false, PlayerButton::Right, true);
-        record_input(this, false, PlayerButton::Right, false);
+        record_input(this, 1, false, PlayerButton::Jump, true);
+        record_input(this, 1, false, PlayerButton::Jump, false);
+        record_input(this, 1, false, PlayerButton::Left, true);
+        record_input(this, 1, false, PlayerButton::Left, false);
+        record_input(this, 1, false, PlayerButton::Right, true);
+        record_input(this, 1, false, PlayerButton::Right, false);
     }
 
     void resetLevel() {
@@ -50,21 +50,21 @@ class $modify(PlayLayer) {
 
         if (!bot_is_recording()) return;
 
-        record_input(this, false, PlayerButton::Jump, true);
-        record_input(this, false, PlayerButton::Jump, false);
-        record_input(this, false, PlayerButton::Left, true);
-        record_input(this, false, PlayerButton::Left, false);
-        record_input(this, false, PlayerButton::Right, true);
-        record_input(this, false, PlayerButton::Right, false);
+        record_input(this, 1, false, PlayerButton::Jump, true);
+        record_input(this, 1, false, PlayerButton::Jump, false);
+        record_input(this, 1, false, PlayerButton::Left, true);
+        record_input(this, 1, false, PlayerButton::Left, false);
+        record_input(this, 1, false, PlayerButton::Right, true);
+        record_input(this, 1, false, PlayerButton::Right, false);
     }
 };
 
-void record_input(PlayLayer *play_layer, bool pressed, PlayerButton button, bool is_player_1) {
+void record_input(PlayLayer *play_layer, int offset, bool pressed, PlayerButton button, bool is_player_1) {
     if (play_layer == nullptr) return;
     if (!play_layer->m_level->isPlatformer() && button != PlayerButton::Jump) return;
 
     bot_record_input(
-        play_layer->m_gameState.m_currentProgress,
+        play_layer->m_gameState.m_currentProgress + offset,
         pressed,
         static_cast<int>(button),
         !play_layer->m_level->m_twoPlayerMode || is_player_1
