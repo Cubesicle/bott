@@ -1,6 +1,9 @@
-use std::{ffi::c_void, sync::LazyLock, thread};
+use std::{ffi::c_void, path::PathBuf, str::FromStr, sync::LazyLock, thread};
+use anyhow::{Context, Error, Result};
 use indexmap::IndexMap;
 use parking_lot::Mutex;
+use regex::Regex;
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use strum_macros::Display;
 use crate::gd;
 
@@ -11,27 +14,126 @@ pub enum Mode {
     Replay,
 }
 
-#[derive(Debug, Eq, Hash, PartialEq)]
-pub struct PlayerInput {
-    button: gd::PlayerButton,
-    is_player_1: bool,
-}
+#[derive(Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct Frame(pub i32);
 
-impl PlayerInput {
-    pub fn new(button: gd::PlayerButton, is_player_1: bool) -> Self {
-        PlayerInput {
-            button,
-            is_player_1,
-        }
+impl Serialize for Frame {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
+        serializer.serialize_str(&format!("frame-{}", self.0))
     }
 }
 
+impl<'de> Deserialize<'de> for Frame {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>
+    {
+        struct FrameVisitor;
+        
+        impl<'de> Visitor<'de> for FrameVisitor {
+            type Value = Frame;
+        
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("frame-<frame-number>")
+            }
+            
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                (|| {
+                    let re = Regex::new("^frame-([0-9]+)$")?;
+                    let captures = re.captures(v).context(format!("Failed to parse \"{v}\""))?;
+                    let frame_number = captures.get(1).map(|m| m.as_str().parse::<i32>().ok()).flatten()
+                        .context(format!("Could not get frame number from {v}"))?;
+
+                    Ok(Frame(frame_number))
+                })().map_err(|e: Error| serde::de::Error::custom(e))
+            }
+        }
+        
+        deserializer.deserialize_str(FrameVisitor)
+    }
+}
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub struct PlayerInput {
+    pub button: gd::PlayerButton,
+    pub is_player_1: bool,
+}
+
+impl Serialize for PlayerInput {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&format!(
+            "player-{}-{}",
+            if self.is_player_1 { "1" } else { "2" },
+            self.button.to_string().to_lowercase()
+        ))
+    }
+}
+
+impl<'de> Deserialize<'de> for PlayerInput {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>
+    {
+        struct PlayerInputVisitor;
+
+        impl<'de> Visitor<'de> for PlayerInputVisitor {
+            type Value = PlayerInput;
+        
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("player-(1 | 2)-(jump | left | right)")
+            }
+            
+            fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                (|| {
+                    let re = Regex::new("^player-(1|2)-(jump|left|right)$")?;
+                    let captures = re.captures(v).context(format!("Failed to parse \"{v}\""))?;
+
+                    let is_player_1 = match captures.get(1) {
+                        Some(m) if m.as_str() == "1" => Some(true),
+                        Some(m) if m.as_str() == "2" => Some(false),
+                        _ => None,
+                    }.context(format!("Could not get player from \"{v}\""))?;
+                    
+                    let button = match captures.get(2) {
+                        Some(m) if m.as_str() == "jump" => Some(gd::PlayerButton::Jump),
+                        Some(m) if m.as_str() == "left" => Some(gd::PlayerButton::Left),
+                        Some(m) if m.as_str() == "right" => Some(gd::PlayerButton::Right),
+                        _ => None,
+                    }.context(format!("Could not get player button from \"{v}\""))?;
+
+                    Ok(PlayerInput {
+                        button,
+                        is_player_1,
+                    })
+                })().map_err(|e: Error| serde::de::Error::custom(e))
+            }
+        }
+        
+        deserializer.deserialize_str(PlayerInputVisitor)
+    }
+}
+
+pub type Inputs = IndexMap<Frame, IndexMap<PlayerInput, bool>>;
+
+pub static REPLAY_DIR: LazyLock<PathBuf> = LazyLock::new(|| gd::geode::SAVE_DIR.join("replays"));
 pub static MODE: Mutex<Mode> = Mutex::new(Mode::Standby);
-pub static RECORDED_INPUTS: LazyLock<Mutex<IndexMap<i32, IndexMap<PlayerInput, bool>>>> = LazyLock::new(|| 
+pub static RECORDED_INPUTS: LazyLock<Mutex<Inputs>> = LazyLock::new(|| 
     Mutex::new(IndexMap::new())
 );
 
-pub fn record_input(frame: i32, pressed: bool, input: PlayerInput) {
+pub fn record_input(frame: Frame, pressed: bool, input: PlayerInput) {
     thread::spawn(move || {
         let inputs = &mut *RECORDED_INPUTS.lock();
         
@@ -62,18 +164,46 @@ pub fn record_input(frame: i32, pressed: bool, input: PlayerInput) {
             inputs.insert(frame, input_map);
         };
         
-        if inputs.first().map(|(k, v)| k == &1 && v.values().find(|v| **v).is_none()).unwrap_or(false) {
+        if inputs.first().map(|(k, v)| *k == Frame(1) && v.values().find(|v| **v).is_none()).unwrap_or(false) {
             inputs.shift_remove_index(0);
         }
     });
 }
 
 pub fn handle_frame(
-    frame: i32,
+    frame: Frame,
     this_ptr: *const c_void,
     handle_button: fn(*const c_void, bool, gd::PlayerButton, bool)
 ) {
     RECORDED_INPUTS.lock().get(&frame).and_then(|input_map| Some(input_map.iter().for_each(|(input, pressed)| {
         handle_button(this_ptr, *pressed, input.button, input.is_player_1);
     })));
+}
+
+pub fn save_replay(path: PathBuf) -> Result<()> {
+    if !std::fs::exists(REPLAY_DIR.as_path())? {
+        std::fs::create_dir(REPLAY_DIR.as_path())?;
+    }
+
+    let mut replay_data = toml::Table::new();
+    replay_data.insert("inputs".to_string(), toml::Value::Table(toml::Table::try_from(&*RECORDED_INPUTS.lock())?));
+
+    std::fs::write(path, toml::to_string_pretty(&replay_data)?)?;
+    
+    Ok(())
+}
+
+pub fn load_replay(path: PathBuf) -> Result<()> {
+    let replay_data = toml::Table::from_str(&std::fs::read_to_string(path)?)?;
+    let mut loaded_inputs = toml::from_str::<Inputs>(
+        &toml::to_string(replay_data.get("inputs").context("Could not find inputs in replay file")?)?
+    )?;
+    
+    let mut inputs = RECORDED_INPUTS.lock();
+    inputs.clear();
+    while let Some((k, v)) = loaded_inputs.shift_remove_index(0) {
+        inputs.insert(k, v);
+    }
+
+    Ok(())
 }

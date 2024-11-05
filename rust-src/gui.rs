@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 use parking_lot::Mutex;
-use crate::bot::{self, Mode::{Record, Replay, Standby}, MODE};
+use crate::{bot::{self, Mode::{Record, Replay, Standby}, MODE, RECORDED_INPUTS}, gd};
 
 #[cfg(not(target_os = "android"))]
 macro_rules! window {
@@ -13,6 +13,7 @@ macro_rules! window {
 }
 
 static OPEN: Mutex<bool> = Mutex::new(true);
+static REPLAY_FILE_NAME: Mutex<String> = Mutex::new(String::new());
 
 pub fn run(ctx: &egui::Context) {
     #[cfg(target_os = "android")]
@@ -55,6 +56,22 @@ pub fn run(ctx: &egui::Context) {
                             .and_then(|inputs| Some(inputs.len().to_string()))
                             .unwrap_or("loading...".to_string())
                     ));
+                    ui.text_edit_singleline(&mut *REPLAY_FILE_NAME.lock());
+                    ui.horizontal(|ui| {
+                        if ui.button("Save").clicked() {
+                            let _ = bot::save_replay(bot::REPLAY_DIR.join(REPLAY_FILE_NAME.lock().clone())).map_err(|e|
+                                gd::geode::log::error(e.to_string())
+                            );
+                        }
+                        if ui.button("Load").clicked() {
+                            let _ = bot::load_replay(bot::REPLAY_DIR.join(REPLAY_FILE_NAME.lock().clone())).map_err(|e|
+                                gd::geode::log::error(e.to_string())
+                            );
+                        }
+                        if ui.button("Clear").clicked() {
+                            std::thread::spawn(move || RECORDED_INPUTS.lock().clear());
+                        }
+                    });
                 });
                 strip.cell(|ui| {
                     ui.separator();
