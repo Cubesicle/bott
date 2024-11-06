@@ -19,25 +19,19 @@ pub mod geode {
         use std::ffi::CString;
         use super::super::bindings::{log_debug, log_info, log_warn, log_error};
         
-        pub fn debug(string: String) {
-            let s = CString::new(string).unwrap_or_default().into_raw();
-            unsafe { log_debug(s); }
+        macro_rules! define_logging_fn {
+            ($wrapper_fn_name:ident, $original_fn_name:ident) => {
+                pub fn $wrapper_fn_name<S: AsRef<str>>(string: S) {
+                    let s = CString::new(string.as_ref()).unwrap_or_default().into_raw();
+                    unsafe { $original_fn_name(s) };
+                }
+            };
         }
         
-        pub fn info(string: String) {
-            let s = CString::new(string).unwrap_or_default().into_raw();
-            unsafe { log_info(s); }
-        }
-        
-        pub fn warn(string: String) {
-            let s = CString::new(string).unwrap_or_default().into_raw();
-            unsafe { log_warn(s); }
-        }
-        
-        pub fn error(string: String) {
-            let s = CString::new(string).unwrap_or_default().into_raw();
-            unsafe { log_error(s); }
-        }
+        define_logging_fn!(debug, log_debug);
+        define_logging_fn!(info, log_info);
+        define_logging_fn!(warn, log_warn);
+        define_logging_fn!(error, log_error);
     }
 }
 

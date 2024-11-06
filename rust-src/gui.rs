@@ -59,12 +59,12 @@ pub fn run(ctx: &egui::Context) {
                     ui.text_edit_singleline(&mut *REPLAY_FILE_NAME.lock());
                     ui.horizontal(|ui| {
                         if ui.button("Save").clicked() {
-                            let _ = bot::save_replay(bot::REPLAY_DIR.join(REPLAY_FILE_NAME.lock().clone())).map_err(|e|
+                            let _ = bot::save_replay(&bot::REPLAY_DIR.join(REPLAY_FILE_NAME.lock().clone())).map_err(|e|
                                 gd::geode::log::error(e.to_string())
                             );
                         }
                         if ui.button("Load").clicked() {
-                            let _ = bot::load_replay(bot::REPLAY_DIR.join(REPLAY_FILE_NAME.lock().clone())).map_err(|e|
+                            let _ = bot::load_replay(&bot::REPLAY_DIR.join(REPLAY_FILE_NAME.lock().clone())).map_err(|e|
                                 gd::geode::log::error(e.to_string())
                             );
                         }
