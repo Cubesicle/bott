@@ -52,6 +52,13 @@ pub fn run(ctx: &egui::Context) {
             .size(egui_extras::Size::exact(footer_height))
             .vertical(|mut strip| {
                 strip.cell(|ui| {
+                    ui.heading("Settings");
+                    ui.separator();
+                    ui.label("stuff");
+                    ui.label("");
+
+                    ui.heading("Save & load");
+                    ui.separator();
                     ui.label(format!(
                         "Inputs: {}",
                         bot::RECORDED_INPUTS.try_lock()
