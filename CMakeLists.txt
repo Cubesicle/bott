@@ -26,11 +26,9 @@ corrosion_experimental_cbindgen(
     HEADER_NAME rust-ffi.h
 )
 
-add_library(${PROJECT_NAME} SHARED
-    cpp-src/main.cpp
-    cpp-src/ffi.cpp
-    cpp-src/keybinds.cpp
-)
+file(GLOB SOURCES cpp-src/*.cpp)
+
+add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 

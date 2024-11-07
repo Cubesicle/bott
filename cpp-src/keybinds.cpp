@@ -1,5 +1,6 @@
 #include <Geode/Geode.hpp>
 #include "rust-ffi.h"
+
 using namespace geode::prelude;
 
 #ifndef GEODE_IS_ANDROID
@@ -9,7 +10,7 @@ using namespace geode::prelude;
             "toggle_gui"_spr,
             "Toggle GUI",
             "Hides/unhides the GUI",
-            { keybinds::Keybind::create(KEY_OEMPeriod, keybinds::Modifier::None) },
+            { keybinds::Keybind::create(KEY_B, keybinds::Modifier::None) },
             "Bott"
         });
         new EventListener([=](keybinds::InvokeBindEvent* event) {

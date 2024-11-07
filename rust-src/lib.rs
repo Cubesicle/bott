@@ -5,7 +5,7 @@ mod gd;
 mod gui;
 
 #[no_mangle]
-pub extern "C" fn gui_run(ctx: *const c_void) {
+pub extern "C" fn run_gui(ctx: *const c_void) {
     gui::run(unsafe { transmute::<_, &egui::Context>(ctx) });
 }
 
@@ -27,6 +27,21 @@ pub extern "C" fn bot_is_recording() -> bool {
 #[no_mangle]
 pub extern "C" fn bot_is_replaying() -> bool {
     *bot::MODE.lock() == bot::Mode::Replay
+}
+
+#[no_mangle]
+pub extern "C" fn bot_frame_stepper_is_on() -> bool {
+    bot::is_frame_stepper_on()
+}
+
+#[no_mangle]
+pub extern "C" fn bot_frame_stepper_should_advance() -> bool {
+    bot::should_frame_stepper_advance()
+}
+
+#[no_mangle]
+pub extern "C" fn bot_set_frame_stepper_advance(advance: bool) {
+    bot::set_frame_stepper_advance(advance);
 }
 
 #[no_mangle]

@@ -125,9 +125,31 @@ pub type Inputs = IndexMap<Frame, IndexMap<PlayerInput, bool>>;
 
 pub static REPLAY_DIR: LazyLock<PathBuf> = LazyLock::new(|| gd::geode::SAVE_DIR.join("replays"));
 pub static MODE: Mutex<Mode> = Mutex::new(Mode::Standby);
-pub static RECORDED_INPUTS: LazyLock<Mutex<Inputs>> = LazyLock::new(|| 
+
+static FRAME_STEPPER: Mutex<bool> = Mutex::new(false);
+static FRAME_STEPPER_ADVANCE: Mutex<bool> = Mutex::new(false);
+static RECORDED_INPUTS: LazyLock<Mutex<Inputs>> = LazyLock::new(|| 
     Mutex::new(IndexMap::new())
 );
+
+pub fn is_frame_stepper_on() -> bool {
+    *FRAME_STEPPER.lock()
+}
+
+pub fn should_frame_stepper_advance() -> bool {
+    *FRAME_STEPPER_ADVANCE.lock()
+}
+
+pub fn toggle_frame_stepper() {
+    let frame_stepper = &mut *FRAME_STEPPER.lock();
+    *frame_stepper = !*frame_stepper;
+    
+    *FRAME_STEPPER_ADVANCE.lock() = false;
+}
+
+pub fn set_frame_stepper_advance(advance: bool) {
+    *FRAME_STEPPER_ADVANCE.lock() = advance;
+}
 
 pub fn record_input(frame: Frame, pressed: bool, input: PlayerInput) {
     thread::spawn(move || {
@@ -164,6 +186,17 @@ pub fn record_input(frame: Frame, pressed: bool, input: PlayerInput) {
             inputs.shift_remove_index(0);
         }
     });
+}
+
+pub fn count_recorded_inputs() -> Option<usize> {
+    //RECORDED_INPUTS.try_lock().map(|input_map| {
+    //    let mut count = 0usize;
+    //    for (_, inputs) in &*input_map {
+    //        count += inputs.len();
+    //    }
+    //    count
+    //})
+    RECORDED_INPUTS.try_lock().map(|input_map| input_map.len())
 }
 
 pub fn handle_frame(

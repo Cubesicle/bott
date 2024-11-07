@@ -54,15 +54,20 @@ pub fn run(ctx: &egui::Context) {
                 strip.cell(|ui| {
                     ui.heading("Settings");
                     ui.separator();
-                    ui.label("stuff");
+                    if ui.checkbox(&mut bot::is_frame_stepper_on(), "Frame stepper").clicked() {
+                        bot::toggle_frame_stepper();
+                    }
+                    if ui.button("Step").clicked() {
+                        bot::set_frame_stepper_advance(true);
+                    }
                     ui.label("");
 
                     ui.heading("Save & load");
                     ui.separator();
                     ui.label(format!(
                         "Inputs: {}",
-                        bot::RECORDED_INPUTS.try_lock()
-                            .and_then(|inputs| Some(inputs.len().to_string()))
+                        bot::count_recorded_inputs()
+                            .and_then(|count| Some(count.to_string()))
                             .unwrap_or("loading...".to_string())
                     ));
                     let replay_file_name = &mut *REPLAY_FILE_NAME.lock();
