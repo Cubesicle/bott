@@ -203,3 +203,7 @@ pub fn load_replay(path: &Path) -> Result<()> {
 
     Ok(())
 }
+
+pub fn clear_inputs() {
+    thread::spawn(move || RECORDED_INPUTS.lock().clear());
+}

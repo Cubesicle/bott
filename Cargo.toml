@@ -12,6 +12,7 @@ anyhow = "1.0"
 egui = "0.29"
 egui_extras = "0.29"
 indexmap = { version = "2.6", features = ["serde"] }
+opener = "0.7"
 parking_lot = "0.12"
 regex = "1.11"
 serde = { version = "1.0", features = ["derive"] }
